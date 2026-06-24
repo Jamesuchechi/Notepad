@@ -1,32 +1,30 @@
 import { PenLine, Settings, Sun, Moon, Monitor, X } from 'lucide-react';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useNoteStore } from '@/store/useNoteStore';
+import NoteList from '@/components/notes/NoteList';
 
 /**
  * Sidebar
  * ────────
  * Three sections:
- *   1. Header   — logo + mobile close button
- *   2. Body     — "New note" button + note list placeholder
- *   3. Footer   — settings icon + theme cycle button
- *
- * @param {{ onClose: () => void }} props
+ *   1. Header  — logo + mobile close button
+ *   2. Body    — "New note" button + NoteList
+ *   3. Footer  — settings icon + theme cycle button
  */
 export default function Sidebar({ onClose }) {
   const theme       = useSettingsStore((s) => s.theme);
   const toggleTheme = useSettingsStore((s) => s.toggleTheme);
+  const createNote  = useNoteStore((s) => s.createNote);
 
   const ThemeIcon =
-    theme === 'dark'   ? Moon    :
-    theme === 'light'  ? Sun     :
-                         Monitor ;
+    theme === 'dark'  ? Moon    :
+    theme === 'light' ? Sun     :
+                        Monitor ;
 
   const themeLabel =
-    theme === 'dark'   ? 'Dark mode'   :
-    theme === 'light'  ? 'Light mode'  :
-                         'System theme';
-
-  const createNote = useNoteStore((state) => state.createNote);
+    theme === 'dark'  ? 'Dark mode'   :
+    theme === 'light' ? 'Light mode'  :
+                        'System theme';
 
   return (
     <div className="sidebar">
@@ -36,8 +34,6 @@ export default function Sidebar({ onClose }) {
           <span className="sidebar__logo-emoji" aria-hidden="true">🧠</span>
           <span className="sidebar__logo-name">Brain</span>
         </div>
-
-        {/* Mobile close button — hidden on desktop via CSS */}
         <button
           className="icon-btn sidebar__close"
           aria-label="Close sidebar"
@@ -49,7 +45,6 @@ export default function Sidebar({ onClose }) {
 
       {/* ── 2. Body ───────────────────────────────────────────── */}
       <div className="sidebar__body">
-        {/* New Note button */}
         <div className="sidebar__new-note-wrapper">
           <button
             className="sidebar__new-note-btn"
@@ -61,26 +56,16 @@ export default function Sidebar({ onClose }) {
           </button>
         </div>
 
-        {/* Note list placeholder — wired up in Phase 4 */}
+        {/* Phase 4: real note list */}
         <div className="sidebar__section-label">Notes</div>
-        <div className="sidebar__note-list-placeholder">
-          <p className="sidebar__empty-hint">No notes yet.</p>
-          <p className="sidebar__empty-hint sidebar__empty-hint--sub">
-            Hit <kbd className="sidebar__kbd">⌘ N</kbd> to start writing.
-          </p>
-        </div>
+        <NoteList />
       </div>
 
       {/* ── 3. Footer ─────────────────────────────────────────── */}
       <footer className="sidebar__footer">
-        <button
-          className="icon-btn"
-          aria-label="Settings"
-          title="Settings"
-        >
+        <button className="icon-btn" aria-label="Settings" title="Settings">
           <Settings size={16} />
         </button>
-
         <button
           className="icon-btn"
           aria-label={themeLabel}
@@ -100,7 +85,6 @@ export default function Sidebar({ onClose }) {
           overflow: hidden;
         }
 
-        /* Header */
         .sidebar__header {
           display: flex;
           align-items: center;
@@ -116,10 +100,7 @@ export default function Sidebar({ onClose }) {
           gap: 8px;
         }
 
-        .sidebar__logo-emoji {
-          font-size: 1.15rem;
-          line-height: 1;
-        }
+        .sidebar__logo-emoji { font-size: 1.15rem; line-height: 1; }
 
         .sidebar__logo-name {
           font-size: 0.9375rem;
@@ -128,14 +109,10 @@ export default function Sidebar({ onClose }) {
           letter-spacing: -0.01em;
         }
 
-        /* Only visible on mobile (AppShell controls the sidebar visibility) */
         @media (min-width: 641px) {
-          .sidebar__close {
-            display: none;
-          }
+          .sidebar__close { display: none; }
         }
 
-        /* Body */
         .sidebar__body {
           flex: 1;
           overflow-y: auto;
@@ -145,9 +122,7 @@ export default function Sidebar({ onClose }) {
           gap: 4px;
         }
 
-        .sidebar__new-note-wrapper {
-          padding: 0 4px 8px;
-        }
+        .sidebar__new-note-wrapper { padding: 0 4px 8px; }
 
         .sidebar__new-note-btn {
           display: flex;
@@ -166,13 +141,8 @@ export default function Sidebar({ onClose }) {
           font-family: inherit;
         }
 
-        .sidebar__new-note-btn:hover {
-          background-color: var(--brand-hover);
-        }
-
-        .sidebar__new-note-btn:active {
-          transform: scale(0.98);
-        }
+        .sidebar__new-note-btn:hover  { background-color: var(--brand-hover); }
+        .sidebar__new-note-btn:active { transform: scale(0.98); }
 
         .sidebar__section-label {
           font-size: 0.6875rem;
@@ -183,38 +153,6 @@ export default function Sidebar({ onClose }) {
           padding: 8px 12px 4px;
         }
 
-        .sidebar__note-list-placeholder {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          padding: 32px 16px;
-        }
-
-        .sidebar__empty-hint {
-          font-size: 0.8125rem;
-          color: var(--text-tertiary);
-          text-align: center;
-        }
-
-        .sidebar__empty-hint--sub {
-          font-size: 0.75rem;
-        }
-
-        .sidebar__kbd {
-          display: inline-block;
-          padding: 1px 5px;
-          background: var(--bg-muted);
-          border: 1px solid var(--border-strong);
-          border-radius: 4px;
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 0.7rem;
-          color: var(--text-secondary);
-        }
-
-        /* Footer */
         .sidebar__footer {
           display: flex;
           align-items: center;

@@ -11,6 +11,12 @@
   --bg-subtle: #f8f8f7;
   --bg-muted: #f0efed;
   --bg-hover: #eae9e6;
+  --bg-active: #e4e2fd;
+  --bg-elevated: #ffffff;
+
+  /* Danger */
+  --danger: #ef4444;
+  --danger-bg: #fef2f2;
 
   /* Borders */
   --border: #e4e3e0;
@@ -44,6 +50,12 @@
   --bg-subtle: #242422;
   --bg-muted: #2c2c29;
   --bg-hover: #343431;
+  --bg-active: #2a2a45;
+  --bg-elevated: #242422;
+
+  /* Danger */
+  --danger: #f87171;
+  --danger-bg: #2d1515;
 
   --border: #333330;
   --border-strong: #4a4a46;
