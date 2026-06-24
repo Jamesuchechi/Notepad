@@ -1,4 +1,5 @@
 import { useNoteStore } from '@/store/useNoteStore';
+import { useFolderStore } from '@/store/useFolderStore';
 import NoteItem from './NoteItem';
 
 /**
@@ -8,11 +9,29 @@ import NoteItem from './NoteItem';
  * Sort order: pinned first → then by updatedAt descending.
  */
 export default function NoteList() {
-  const notes        = useNoteStore((s) => s.notes);
-  const activeNoteId = useNoteStore((s) => s.activeNoteId);
+  const notes         = useNoteStore((s) => s.notes);
+  const activeNoteId  = useNoteStore((s) => s.activeNoteId);
   const setActiveNote = useNoteStore((s) => s.setActiveNote);
+  const activeFolderId = useFolderStore((s) => s.activeFolderId);
+  const tagFilter      = useFolderStore((s) => s.tagFilter);
 
-  const sorted = [...notes].sort((a, b) => {
+  const filtered = notes.filter((note) => {
+    if (tagFilter && !note.tags?.includes(tagFilter)) {
+      return false;
+    }
+
+    if (activeFolderId === 'pinned') {
+      return note.pinned;
+    }
+
+    if (activeFolderId === 'all') {
+      return true;
+    }
+
+    return note.folderId === activeFolderId;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     return new Date(b.updatedAt) - new Date(a.updatedAt);
   });

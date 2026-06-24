@@ -1,6 +1,7 @@
 import { PenLine, Settings, Sun, Moon, Monitor, X } from 'lucide-react';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useNoteStore } from '@/store/useNoteStore';
+import FolderList from '@/components/folders/FolderList';
 import NoteList from '@/components/notes/NoteList';
 
 /**
@@ -11,7 +12,7 @@ import NoteList from '@/components/notes/NoteList';
  *   2. Body    — "New note" button + NoteList
  *   3. Footer  — settings icon + theme cycle button
  */
-export default function Sidebar({ onClose }) {
+export default function Sidebar({ onClose, onOpenSearch }) {
   const theme       = useSettingsStore((s) => s.theme);
   const toggleTheme = useSettingsStore((s) => s.toggleTheme);
   const createNote  = useNoteStore((s) => s.createNote);
@@ -34,13 +35,23 @@ export default function Sidebar({ onClose }) {
           <span className="sidebar__logo-emoji" aria-hidden="true">🧠</span>
           <span className="sidebar__logo-name">Brain</span>
         </div>
-        <button
-          className="icon-btn sidebar__close"
-          aria-label="Close sidebar"
-          onClick={onClose}
-        >
-          <X size={16} />
-        </button>
+        <div className="sidebar__header-actions">
+          <button
+            className="icon-btn sidebar__search"
+            aria-label="Search notes"
+            title="Search notes"
+            onClick={onOpenSearch}
+          >
+            <PenLine size={16} />
+          </button>
+          <button
+            className="icon-btn sidebar__close"
+            aria-label="Close sidebar"
+            onClick={onClose}
+          >
+            <X size={16} />
+          </button>
+        </div>
       </header>
 
       {/* ── 2. Body ───────────────────────────────────────────── */}
@@ -56,7 +67,8 @@ export default function Sidebar({ onClose }) {
           </button>
         </div>
 
-        {/* Phase 4: real note list */}
+        <FolderList />
+
         <div className="sidebar__section-label">Notes</div>
         <NoteList />
       </div>
@@ -107,6 +119,20 @@ export default function Sidebar({ onClose }) {
           font-weight: 600;
           color: var(--text-primary);
           letter-spacing: -0.01em;
+        }
+
+        .sidebar__header-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .sidebar__search {
+          color: var(--text-tertiary);
+        }
+
+        .sidebar__search:hover {
+          color: var(--text-primary);
         }
 
         @media (min-width: 641px) {

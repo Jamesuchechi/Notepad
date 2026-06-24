@@ -1,23 +1,17 @@
 import { useState } from 'react';
 import Sidebar from './Sidebar';
 import EditorPane from './EditorPane';
+import SearchModal from '../search/SearchModal';
+import SearchShortcut from './SearchShortcut';
 
-/**
- * AppShell
- * ─────────
- * Root layout component. Two-panel design:
- *   • Left  → <Sidebar>   (collapsible on narrow screens)
- *   • Right → <EditorPane>
- *
- * The sidebar width is controlled by the CSS variable --sidebar-width (260px)
- * defined in index.css.  On small screens the sidebar slides off-canvas and
- * an overlay closes it again.
- */
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  const openSidebar  = () => setSidebarOpen(true);
+  const openSidebar = () => setSidebarOpen(true);
   const closeSidebar = () => setSidebarOpen(false);
+  const openSearch = () => setSearchOpen(true);
+  const closeSearch = () => setSearchOpen(false);
 
   return (
     <div className="app-shell">
@@ -32,13 +26,16 @@ export default function AppShell() {
 
       {/* ── Sidebar ── */}
       <aside className={`app-sidebar ${sidebarOpen ? 'app-sidebar--open' : ''}`}>
-        <Sidebar onClose={closeSidebar} />
+        <Sidebar onClose={closeSidebar} onOpenSearch={openSearch} />
       </aside>
 
       {/* ── Main editor area ── */}
       <main className="app-main">
         <EditorPane onOpenSidebar={openSidebar} />
       </main>
+
+      <SearchModal open={searchOpen} onClose={closeSearch} />
+      <SearchShortcut onOpen={openSearch} />
 
       {/* ── Scoped styles ─────────────────────────────────────── */}
       <style>{`

@@ -1,17 +1,20 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { useNoteStore } from './useNoteStore';
 
 export const useFolderStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       folders: [],
+      activeFolderId: 'all',
+      tagFilter: null,
 
-      createFolder: (name) => {
+      createFolder: (name, color = '#6366f1') => {
         const folder = {
           id: uuidv4(),
           name,
-          color: '#6366f1',
+          color,
         };
         set((state) => ({ folders: [...state.folders, folder] }));
         return folder;
@@ -25,9 +28,30 @@ export const useFolderStore = create(
         }));
       },
 
+      setFolderColor: (id, color) => {
+        set((state) => ({
+          folders: state.folders.map((folder) =>
+            folder.id === id ? { ...folder, color } : folder
+          ),
+        }));
+      },
+
+      setActiveFolderId: (id) => set({ activeFolderId: id }),
+      setTagFilter: (tag) => set({ tagFilter: tag }),
+      clearTagFilter: () => set({ tagFilter: null }),
+
       deleteFolder: (id) => {
+        const noteIds = useNoteStore.getState()
+          .notes.filter((note) => note.folderId === id)
+          .map((note) => note.id);
+
+        noteIds.forEach((noteId) => {
+          useNoteStore.getState().updateNote(noteId, { folderId: null });
+        });
+
         set((state) => ({
           folders: state.folders.filter((folder) => folder.id !== id),
+          activeFolderId: state.activeFolderId === id ? 'all' : state.activeFolderId,
         }));
       },
     }),

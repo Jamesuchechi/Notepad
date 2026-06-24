@@ -1,24 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { Pin, MoreHorizontal, Trash2, PinOff } from 'lucide-react';
+import { Pin, MoreHorizontal, Trash2, PinOff, FolderPlus, X } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
+import { useFolderStore } from '@/store/useFolderStore';
 
-/**
- * NoteItem
- * ─────────
- * A single note row in the sidebar list.
- *
- * Features:
- *   • Shows title (fallback "Untitled") + relative timestamp
- *   • Folder colour dot when note.folderId is set (Phase 6)
- *   • Pin indicator icon
- *   • ⋯ context menu: pin/unpin, delete
- *   • Highlighted when active
- */
+
 export default function NoteItem({ note, isActive, onSelect }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef  = useRef(null);
   const deleteNote = useNoteStore((s) => s.deleteNote);
   const pinNote    = useNoteStore((s) => s.pinNote);
+  const updateNote = useNoteStore((s) => s.updateNote);
+  const folders = useFolderStore((s) => s.folders);
+  const folder = folders.find((folder) => folder.id === note.folderId);
 
   // Close menu on outside click
   useEffect(() => {
@@ -49,6 +42,12 @@ export default function NoteItem({ note, isActive, onSelect }) {
     setMenuOpen(false);
   };
 
+  const handleMoveToFolder = (e, folderId) => {
+    e.stopPropagation();
+    updateNote(note.id, { folderId });
+    setMenuOpen(false);
+  };
+
   return (
     <li
       className={`note-item ${isActive ? 'note-item--active' : ''}`}
@@ -58,7 +57,11 @@ export default function NoteItem({ note, isActive, onSelect }) {
     >
       {/* Left: folder colour dot (Phase 6 — hidden until folderId is set) */}
       {note.folderId && (
-        <span className="note-item__folder-dot" aria-hidden="true" />
+        <span
+          className="note-item__folder-dot"
+          aria-hidden="true"
+          style={{ backgroundColor: folder?.color ?? 'var(--brand)' }}
+        />
       )}
 
       {/* Centre: title + timestamp */}
@@ -102,6 +105,29 @@ export default function NoteItem({ note, isActive, onSelect }) {
                 )}
               </button>
             </li>
+            <li role="none">
+              <div className="note-item__menu-section">Move to folder</div>
+            </li>
+            <li role="none">
+              <button
+                className="note-item__menu-action"
+                role="menuitem"
+                onClick={(e) => handleMoveToFolder(e, null)}
+              >
+                <X size={13} /> No folder
+              </button>
+            </li>
+            {folders.map((folderItem) => (
+              <li key={folderItem.id} role="none">
+                <button
+                  className="note-item__menu-action"
+                  role="menuitem"
+                  onClick={(e) => handleMoveToFolder(e, folderItem.id)}
+                >
+                  <FolderPlus size={13} /> {folderItem.name}
+                </button>
+              </li>
+            ))}
             <li role="none" className="note-item__menu-divider" aria-hidden="true" />
             <li role="none">
               <button

@@ -1,13 +1,8 @@
 import { PanelLeft, FileText } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
+import Editor from '@/components/editor/Editor';
 
-/**
- * EditorPane
- * ───────────
- * Right-side panel.
- *   • No note selected  → EmptyState
- *   • Note selected     → title input + editor placeholder + footer stats bar
- */
+
 export default function EditorPane({ onOpenSidebar }) {
   // ✅ Select each value separately — avoids new-object-on-every-render infinite loop
   const activeNoteId = useNoteStore((s) => s.activeNoteId);
@@ -35,7 +30,7 @@ export default function EditorPane({ onOpenSidebar }) {
       {/* Content area */}
       <div className="editor-pane__content">
         {activeNote ? (
-          <NoteEditor note={activeNote} />
+          <Editor note={activeNote} />
         ) : (
           <EmptyState />
         )}
@@ -59,46 +54,6 @@ function EmptyState() {
         <kbd className="editor-empty__kbd">⌘ N</kbd> to start a new one.
       </p>
     </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────
-   NoteEditor — placeholder until Phase 5 wires up Tiptap
-───────────────────────────────────────────────────────────────── */
-function NoteEditor({ note }) {
-  return (
-    <>
-      <div className="note-title-wrapper">
-        <input
-          className="note-title-input"
-          type="text"
-          placeholder="Untitled"
-          defaultValue={note.title ?? ''}
-          aria-label="Note title"
-        />
-      </div>
-
-      <div className="note-editor-placeholder">
-        <p className="note-editor-placeholder__text">Editor loads in Phase 5…</p>
-      </div>
-
-      <EditorFooter />
-    </>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────
-   EditorFooter
-───────────────────────────────────────────────────────────────── */
-function EditorFooter() {
-  return (
-    <footer className="editor-footer">
-      <span className="editor-footer__stat">0 words</span>
-      <span className="editor-footer__sep" aria-hidden="true">·</span>
-      <span className="editor-footer__stat">0 characters</span>
-      <span className="editor-footer__sep" aria-hidden="true">·</span>
-      <span className="editor-footer__stat">0 min read</span>
-    </footer>
   );
 }
 

@@ -78,47 +78,47 @@ Phased plan from project setup to a fully polished app. Work through each phase 
 
 ## Phase 5 — Tiptap Editor
 
-- [ ] Install and configure Tiptap with `StarterKit`
-- [ ] Build `Editor` component wrapping `<EditorContent>`
-- [ ] Build `Toolbar` component
-  - [ ] Bold, italic, strikethrough
-  - [ ] Headings (H1, H2, H3)
-  - [ ] Bullet list, ordered list
-  - [ ] Blockquote
-  - [ ] Horizontal rule
-  - [ ] Undo / redo
-- [ ] Wire editor content to active note in store
-- [ ] Auto-save on every editor `onUpdate` event (debounce 500ms)
-- [ ] Auto-save note title from `<input>` at top of editor pane
-- [ ] Show "Saved" / "Saving…" indicator in footer
+- [x] Install and configure Tiptap with `StarterKit`
+- [x] Build `Editor` component wrapping `<EditorContent>`
+- [x] Build `Toolbar` component
+  - [x] Bold, italic, strikethrough
+  - [x] Headings (H1, H2, H3)
+  - [x] Bullet list, ordered list
+  - [x] Blockquote
+  - [x] Horizontal rule
+  - [x] Undo / redo
+- [x] Wire editor content to active note in store
+- [x] Auto-save on every editor `onUpdate` event (debounce 500ms)
+- [x] Auto-save note title from `<input>` at top of editor pane
+- [x] Show "Saved" / "Saving…" indicator in footer
 
 ---
 
 ## Phase 6 — Folders & Tags
 
-- [ ] Build `FolderList` in sidebar above note list
-  - [ ] Show all folders with note count
-  - [ ] "All Notes" and "Pinned" as default smart folders at the top
-  - [ ] Click folder to filter note list
-  - [ ] `+` button to create new folder
-- [ ] Build `FolderItem` with right-click/`⋯` menu: rename, change colour, delete
-- [ ] Build `FolderModal` for create/rename
-- [ ] Build tag input in note metadata (below title)
-  - [ ] Add/remove tags inline
-  - [ ] Filter note list by tag
+- [x] Build `FolderList` in sidebar above note list
+  - [x] Show all folders with note count
+  - [x] "All Notes" and "Pinned" as default smart folders at the top
+  - [x] Click folder to filter note list
+  - [x] `+` button to create new folder
+- [x] Build `FolderItem` with right-click/`⋯` menu: rename, change colour, delete
+- [x] Build `FolderModal` for create/rename
+- [x] Build tag input in note metadata (below title)
+  - [x] Add/remove tags inline
+  - [x] Filter note list by tag
 
 ---
 
 ## Phase 7 — Search
 
-- [ ] Build `SearchModal` (triggered by `Cmd+F`)
-  - [ ] Full-screen overlay or command-palette style popover
-  - [ ] Input with instant filtering
-  - [ ] Search across note titles and content (strip HTML for content search)
-  - [ ] Show matched note title + content snippet
-  - [ ] Click result to open note and close modal
-  - [ ] Highlight matched term in results list
-- [ ] Add search icon button in sidebar header as alternative trigger
+- [x] Build `SearchModal` (triggered by `Cmd+F`)
+  - [x] Full-screen overlay or command-palette style popover
+  - [x] Input with instant filtering
+  - [x] Search across note titles and content (strip HTML for content search)
+  - [x] Show matched note title + content snippet
+  - [x] Click result to open note and close modal
+  - [x] Highlight matched term in results list
+- [x] Add search icon button in sidebar header as alternative trigger
 
 ---
 
