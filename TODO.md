@@ -44,35 +44,35 @@ Phased plan from project setup to a fully polished app. Work through each phase 
 
 ## Phase 3 — State & localStorage
 
-- [ ] Create `useNoteStore` (Zustand)
-  - [ ] State: `notes[]`, `activeNoteId`
-  - [ ] Actions: `createNote`, `updateNote`, `deleteNote`, `setActiveNote`, `pinNote`
-  - [ ] Persist entire store to `localStorage` key `brain_notes` on every change (Zustand `persist` middleware)
-- [ ] Create `useFolderStore` (Zustand)
-  - [ ] State: `folders[]`
-  - [ ] Actions: `createFolder`, `renameFolder`, `deleteFolder`
-  - [ ] Persist to `brain_folders`
-- [ ] Create `useSettingsStore` (Zustand)
-  - [ ] State: `theme`, `lastOpenedNoteId`, `fontSize`
-  - [ ] Persist to `brain_settings`
-- [ ] Write `storage.js` utility helpers (safe get/set with JSON parse error handling)
-- [ ] Restore last opened note on app load
+- [x] Create `useNoteStore` (Zustand)
+  - [x] State: `notes[]`, `activeNoteId`
+  - [x] Actions: `createNote`, `updateNote`, `deleteNote`, `setActiveNote`, `pinNote`
+  - [x] Persist entire store to `localStorage` key `brain_notes` on every change (Zustand `persist` middleware)
+- [x] Create `useFolderStore` (Zustand)
+  - [x] State: `folders[]`
+  - [x] Actions: `createFolder`, `renameFolder`, `deleteFolder`
+  - [x] Persist to `brain_folders`
+- [x] Create `useSettingsStore` (Zustand)
+  - [x] State: `theme`, `lastOpenedNoteId`, `fontSize`
+  - [x] Persist to `brain_settings`
+- [x] Write `storage.js` utility helpers (safe get/set with JSON parse error handling)
+- [x] Restore last opened note on app load
 
 ---
 
 ## Phase 4 — Note List
 
-- [ ] Build `NoteList` component in sidebar
-  - [ ] Render notes from store
-  - [ ] Show note title (fallback: "Untitled") and last edited timestamp
-  - [ ] Highlight active note
-  - [ ] Click to open a note
-- [ ] Build `NoteItem` component
-  - [ ] Pin icon (filled if pinned)
-  - [ ] Right-click or `⋯` menu: rename, pin, move to folder, delete
-  - [ ] Show folder colour dot if note is in a folder
-- [ ] Sort notes: pinned first, then by `updatedAt` descending
-- [ ] Show empty state when no notes exist
+- [x] Build `NoteList` component in sidebar
+  - [x] Render notes from store
+  - [x] Show note title (fallback: "Untitled") and last edited timestamp
+  - [x] Highlight active note
+  - [x] Click to open a note
+- [x] Build `NoteItem` component
+  - [x] Pin icon (filled if pinned)
+  - [x] Right-click or `⋯` menu: rename, pin, move to folder, delete
+  - [x] Show folder colour dot if note is in a folder
+- [x] Sort notes: pinned first, then by `updatedAt` descending
+- [x] Show empty state when no notes exist
 
 ---
 
