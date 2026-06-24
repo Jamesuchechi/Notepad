@@ -23,22 +23,22 @@ Phased plan from project setup to a fully polished app. Work through each phase 
 
 ## Phase 2 — Layout Shell
 
-- [ ] Build `AppShell` component — full-height two-panel layout (sidebar + editor pane)
-- [ ] Build `Sidebar` component
-  - [ ] App logo / name at the top (`🧠 Brain`)
-  - [ ] "New note" button
-  - [ ] Note list area (placeholder for now)
-  - [ ] Bottom: settings icon + theme toggle
-- [ ] Build `EditorPane` component
-  - [ ] Empty state when no note is selected ("Select or create a note")
-  - [ ] Note title input at the top
-  - [ ] Editor area (placeholder)
-  - [ ] Footer bar (word count placeholder)
-- [ ] Make layout responsive — sidebar collapses on narrow screens
-- [ ] Add dark/light mode toggle
-  - [ ] Detect system preference on load
-  - [ ] Persist preference to `localStorage`
-  - [ ] Apply `dark` class to `<html>` via Tailwind
+- [x] Build `AppShell` component — full-height two-panel layout (sidebar + editor pane)
+- [x] Build `Sidebar` component
+  - [x] App logo / name at the top (`🧠 Brain`)
+  - [x] "New note" button
+  - [x] Note list area (placeholder for now)
+  - [x] Bottom: settings icon + theme toggle
+- [x] Build `EditorPane` component
+  - [x] Empty state when no note is selected ("Select or create a note")
+  - [x] Note title input at the top
+  - [x] Editor area (placeholder)
+  - [x] Footer bar (word count placeholder)
+- [x] Make layout responsive — sidebar collapses on narrow screens
+- [x] Add dark/light mode toggle
+  - [x] Detect system preference on load
+  - [x] Persist preference to `localStorage`
+  - [x] Apply `dark` class to `<html>` via Tailwind
 
 ---
 
