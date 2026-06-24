@@ -1,0 +1,34 @@
+{
+  "name": "brain",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .js,.jsx",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@tiptap/react": "^3.27.1",
+    "@tiptap/starter-kit": "^3.27.1",
+    "file-saver": "^2.0.5",
+    "jszip": "^3.10.1",
+    "lucide-react": "^1.21.0",
+    "tailwindcss": "^4.3.1",
+    "uuid": "^14.0.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.20",
+    "@vitejs/plugin-react": "^6.0.3",
+    "autoprefixer": "^10.5.1",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "postcss": "^8.5.15",
+    "prettier": "^3.8.4",
+    "vite": "^8.1.0"
+  }
+}
