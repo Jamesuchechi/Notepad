@@ -1,18 +1,11 @@
-import { PenLine, Settings, Sun, Moon, Monitor, X } from 'lucide-react';
+import { PenLine, Settings, Sun, Moon, Monitor, X, HelpCircle } from 'lucide-react';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useNoteStore } from '@/store/useNoteStore';
 import FolderList from '@/components/folders/FolderList';
 import NoteList from '@/components/notes/NoteList';
+import ImportButton from '@/components/notes/ImportButton';
 
-/**
- * Sidebar
- * ────────
- * Three sections:
- *   1. Header  — logo + mobile close button
- *   2. Body    — "New note" button + NoteList
- *   3. Footer  — settings icon + theme cycle button
- */
-export default function Sidebar({ onClose, onOpenSearch }) {
+export default function Sidebar({ onClose, onOpenSearch, onOpenSettings, onOpenShortcuts }) {
   const theme       = useSettingsStore((s) => s.theme);
   const toggleTheme = useSettingsStore((s) => s.toggleTheme);
   const createNote  = useNoteStore((s) => s.createNote);
@@ -56,7 +49,8 @@ export default function Sidebar({ onClose, onOpenSearch }) {
 
       {/* ── 2. Body ───────────────────────────────────────────── */}
       <div className="sidebar__body">
-        <div className="sidebar__new-note-wrapper">
+        {/* New note + Import row */}
+        <div className="sidebar__action-row">
           <button
             className="sidebar__new-note-btn"
             aria-label="New note"
@@ -65,6 +59,7 @@ export default function Sidebar({ onClose, onOpenSearch }) {
             <PenLine size={15} strokeWidth={2} />
             <span>New note</span>
           </button>
+          <ImportButton />
         </div>
 
         <FolderList />
@@ -75,7 +70,20 @@ export default function Sidebar({ onClose, onOpenSearch }) {
 
       {/* ── 3. Footer ─────────────────────────────────────────── */}
       <footer className="sidebar__footer">
-        <button className="icon-btn" aria-label="Settings" title="Settings">
+        <button
+          className="icon-btn"
+          aria-label="Keyboard shortcuts"
+          title="Keyboard shortcuts"
+          onClick={onOpenShortcuts}
+        >
+          <HelpCircle size={16} />
+        </button>
+        <button
+          className="icon-btn"
+          aria-label="Settings"
+          title="Settings"
+          onClick={onOpenSettings}
+        >
           <Settings size={16} />
         </button>
         <button
@@ -127,13 +135,8 @@ export default function Sidebar({ onClose, onOpenSearch }) {
           gap: 8px;
         }
 
-        .sidebar__search {
-          color: var(--text-tertiary);
-        }
-
-        .sidebar__search:hover {
-          color: var(--text-primary);
-        }
+        .sidebar__search { color: var(--text-tertiary); }
+        .sidebar__search:hover { color: var(--text-primary); }
 
         @media (min-width: 641px) {
           .sidebar__close { display: none; }
@@ -148,13 +151,18 @@ export default function Sidebar({ onClose, onOpenSearch }) {
           gap: 4px;
         }
 
-        .sidebar__new-note-wrapper { padding: 0 4px 8px; }
+        .sidebar__action-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 0 4px 8px;
+        }
 
         .sidebar__new-note-btn {
+          flex: 1;
           display: flex;
           align-items: center;
           gap: 7px;
-          width: 100%;
           padding: 7px 10px;
           border-radius: 7px;
           border: none;

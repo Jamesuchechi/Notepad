@@ -2,19 +2,60 @@ import { useState } from 'react';
 import Sidebar from './Sidebar';
 import EditorPane from './EditorPane';
 import SearchModal from '../search/SearchModal';
-import SearchShortcut from './SearchShortcut';
+import SettingsPanel from './SettingsPanel';
+import KeyboardShortcutsModal from './KeyboardShortcutsModal';
+import useKeyboardShortcuts from '@/hooks/useKeyboardShortcuts';
+import { useNoteStore } from '@/store/useNoteStore';
 
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [forceSaveSignal, setForceSaveSignal] = useState(0);
+
+  const createNote = useNoteStore((s) => s.createNote);
+  const notes = useNoteStore((s) => s.notes);
 
   const openSidebar = () => setSidebarOpen(true);
   const closeSidebar = () => setSidebarOpen(false);
   const openSearch = () => setSearchOpen(true);
   const closeSearch = () => setSearchOpen(false);
+  const openSettings = () => setSettingsOpen(true);
+  const closeSettings = () => setSettingsOpen(false);
+  const openShortcuts = () => setShortcutsOpen(true);
+  const closeShortcuts = () => setShortcutsOpen(false);
+
+  const toggleFocusMode = () => {
+    setFocusMode((current) => !current);
+    if (sidebarOpen) setSidebarOpen(false);
+  };
+
+  const togglePreviewMode = () => setPreviewMode((current) => !current);
+  const forceSave = () => setForceSaveSignal((current) => current + 1);
+  const closeModals = () => {
+    if (focusMode) setFocusMode(false);
+    setSearchOpen(false);
+    setSettingsOpen(false);
+    setShortcutsOpen(false);
+    setSidebarOpen(false);
+  };
+
+  useKeyboardShortcuts({
+    onCreateNote: createNote,
+    onOpenSearch: openSearch,
+    onForceSave: forceSave,
+    onTogglePreview: togglePreviewMode,
+    onToggleFocusMode: toggleFocusMode,
+    onOpenSettings: openSettings,
+    onOpenShortcuts: openShortcuts,
+    onCloseModals: closeModals,
+  });
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${focusMode ? 'app-shell--focus' : ''}`}>
       {/* ── Mobile overlay ── */}
       {sidebarOpen && (
         <div
@@ -26,16 +67,29 @@ export default function AppShell() {
 
       {/* ── Sidebar ── */}
       <aside className={`app-sidebar ${sidebarOpen ? 'app-sidebar--open' : ''}`}>
-        <Sidebar onClose={closeSidebar} onOpenSearch={openSearch} />
+        <Sidebar
+          onClose={closeSidebar}
+          onOpenSearch={openSearch}
+          onOpenSettings={openSettings}
+          onOpenShortcuts={openShortcuts}
+        />
       </aside>
 
       {/* ── Main editor area ── */}
-      <main className="app-main">
-        <EditorPane onOpenSidebar={openSidebar} />
+      <main className={`app-main ${focusMode ? 'app-main--focus' : ''}`}>
+        <EditorPane
+          onOpenSidebar={openSidebar}
+          previewMode={previewMode}
+          forceSaveSignal={forceSaveSignal}
+          focusMode={focusMode}
+          onTogglePreview={togglePreviewMode}
+          onToggleFocusMode={toggleFocusMode}
+        />
       </main>
 
       <SearchModal open={searchOpen} onClose={closeSearch} />
-      <SearchShortcut onOpen={openSearch} />
+      <SettingsPanel open={settingsOpen} onClose={closeSettings} />
+      <KeyboardShortcutsModal open={shortcutsOpen} onClose={closeShortcuts} />
 
       {/* ── Scoped styles ─────────────────────────────────────── */}
       <style>{`
@@ -86,14 +140,21 @@ export default function AppShell() {
             transform: translateX(0);
             box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
           }
+        }
 
-          .sidebar-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.4);
-            z-index: 30;
-            animation: fade-in 0.15s ease;
-          }
+        .app-shell--focus .app-sidebar {
+          transform: translateX(-100%);
+          pointer-events: none;
+        }
+
+        .app-main {
+          transition: padding 0.3s ease, align-items 0.3s ease;
+        }
+
+        .app-main--focus {
+          align-items: center;
+          justify-content: flex-start;
+          padding: 32px 24px;
         }
       `}</style>
     </div>

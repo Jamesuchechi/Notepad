@@ -3,7 +3,7 @@ import { useNoteStore } from '@/store/useNoteStore';
 import Editor from '@/components/editor/Editor';
 
 
-export default function EditorPane({ onOpenSidebar }) {
+export default function EditorPane({ onOpenSidebar, previewMode, forceSaveSignal, focusMode, onTogglePreview, onToggleFocusMode }) {
   // ✅ Select each value separately — avoids new-object-on-every-render infinite loop
   const activeNoteId = useNoteStore((s) => s.activeNoteId);
   const notes        = useNoteStore((s) => s.notes);
@@ -30,7 +30,14 @@ export default function EditorPane({ onOpenSidebar }) {
       {/* Content area */}
       <div className="editor-pane__content">
         {activeNote ? (
-          <Editor note={activeNote} />
+          <Editor
+            note={activeNote}
+            previewMode={previewMode}
+            forceSaveSignal={forceSaveSignal}
+            focusMode={focusMode}
+            onTogglePreview={onTogglePreview}
+            onToggleFocusMode={onToggleFocusMode}
+          />
         ) : (
           <EmptyState />
         )}

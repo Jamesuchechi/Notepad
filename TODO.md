@@ -124,64 +124,64 @@ Phased plan from project setup to a fully polished app. Work through each phase 
 
 ## Phase 8 — Export & Import
 
-- [ ] Write `export.js` utility
-  - [ ] `exportAsMarkdown(note)` — convert Tiptap HTML → markdown (use `turndown`)
-  - [ ] `exportAsTxt(note)` — strip HTML, plain text
-  - [ ] `exportAsHtml(note)` — full HTML file with inline styles
-  - [ ] `exportAllAsZip(notes)` — use `jszip` to bundle all notes as `.md` files
-- [ ] Add export button / dropdown in editor toolbar or `⋯` note menu
-  - [ ] Single note: choose format (md / txt / html)
-  - [ ] Bulk: "Export all" → zip download
-- [ ] Build import flow
-  - [ ] Drag-and-drop `.md` or `.txt` onto the app
-  - [ ] Or "Import" button in sidebar → file picker
-  - [ ] Parse file, create new note in store with file content
+- [x] Write `export.js` utility
+  - [x] `exportAsMarkdown(note)` — convert Tiptap HTML → markdown (use `turndown`)
+  - [x] `exportAsTxt(note)` — strip HTML, plain text
+  - [x] `exportAsHtml(note)` — full HTML file with inline styles
+  - [x] `exportAllAsZip(notes)` — use `jszip` to bundle all notes as `.md` files
+- [x] Add export button / dropdown in editor toolbar or `⋯` note menu
+  - [x] Single note: choose format (md / txt / html)
+  - [x] Bulk: "Export all" → zip download
+- [x] Build import flow
+  - [x] Drag-and-drop `.md` or `.txt` onto the app
+  - [x] Or "Import" button in sidebar → file picker
+  - [x] Parse file, create new note in store with file content
 
 ---
 
 ## Phase 9 — Writing Stats & Metadata
 
-- [ ] Build `StatsBar` in editor footer
-  - [ ] Live word count
-  - [ ] Character count
-  - [ ] Estimated reading time (`words / 200` minutes)
-- [ ] Show `createdAt` and `updatedAt` below note title in a muted style
-- [ ] Make note list sortable: by date edited, date created, title (A–Z)
+- [x] Build `StatsBar` in editor footer
+  - [x] Live word count
+  - [x] Character count
+  - [x] Estimated reading time (`words / 200` minutes)
+- [x] Show `createdAt` and `updatedAt` below note title in a muted style
+- [x] Make note list sortable: by date edited, date created, title (A–Z)
 
 ---
 
 ## Phase 10 — Keyboard Shortcuts
 
-- [ ] Create `useKeyboardShortcuts` hook
-- [ ] Implement shortcuts:
-  - [ ] `Cmd/Ctrl + N` → create new note
-  - [ ] `Cmd/Ctrl + F` → open search modal
-  - [ ] `Cmd/Ctrl + S` → force save (flush debounce)
-  - [ ] `Cmd/Ctrl + E` → toggle markdown preview
-  - [ ] `Cmd/Ctrl + Shift + F` → toggle focus mode
-  - [ ] `Cmd/Ctrl + ,` → open settings panel
-  - [ ] `Escape` → close any open modal
-- [ ] Build keyboard shortcuts reference modal (`?` icon in sidebar)
+- [x] Create `useKeyboardShortcuts` hook
+- [x] Implement shortcuts:
+  - [x] `Cmd/Ctrl + N` → create new note
+  - [x] `Cmd/Ctrl + F` → open search modal
+  - [x] `Cmd/Ctrl + S` → force save (flush debounce)
+  - [x] `Cmd/Ctrl + E` → toggle markdown preview
+  - [x] `Cmd/Ctrl + Shift + F` → toggle focus mode
+  - [x] `Cmd/Ctrl + ,` → open settings panel
+  - [x] `Escape` → close any open modal
+- [x] Build keyboard shortcuts reference modal (`?` icon in sidebar)
 
 ---
 
 ## Phase 11 — Markdown Preview
 
-- [ ] Install `marked` or `react-markdown`
-- [ ] Add preview toggle button in toolbar
-- [ ] Build `MarkdownPreview` component — renders HTML from note content
-- [ ] Animate toggle transition between edit and preview
+- [x] Install `marked` or `react-markdown`
+- [x] Add preview toggle button in toolbar
+- [x] Build `MarkdownPreview` component — renders HTML from note content
+- [x] Animate toggle transition between edit and preview
 
 ---
 
 ## Phase 12 — Focus Mode
 
-- [ ] Add focus mode toggle (button in toolbar or `Cmd+Shift+F`)
-- [ ] In focus mode: hide sidebar, hide toolbar, hide footer
-- [ ] Centred single-column layout with max-width ~680px
-- [ ] Subtle fade-in/out transition
-- [ ] Move mouse to top to temporarily reveal toolbar (optional)
-- [ ] `Escape` exits focus mode
+- [x] Add focus mode toggle (button in toolbar or `Cmd+Shift+F`)
+- [x] In focus mode: hide sidebar, hide toolbar, hide footer
+- [x] Centred single-column layout with max-width ~680px
+- [x] Subtle fade-in/out transition
+- [x] Move mouse to top to temporarily reveal toolbar (optional)
+- [x] `Escape` exits focus mode
 
 ---
 

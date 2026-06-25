@@ -1,13 +1,15 @@
+import { useState } from 'react';
+import { ArrowUpDown } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
 import { useFolderStore } from '@/store/useFolderStore';
 import NoteItem from './NoteItem';
 
-/**
- * NoteList
- * ─────────
- * Renders sorted notes from the store inside the sidebar.
- * Sort order: pinned first → then by updatedAt descending.
- */
+const SORT_OPTIONS = [
+  { value: 'updatedAt', label: 'Last edited' },
+  { value: 'createdAt', label: 'Date created' },
+  { value: 'title',     label: 'Title (A–Z)'  },
+];
+
 export default function NoteList() {
   const notes         = useNoteStore((s) => s.notes);
   const activeNoteId  = useNoteStore((s) => s.activeNoteId);
@@ -15,26 +17,27 @@ export default function NoteList() {
   const activeFolderId = useFolderStore((s) => s.activeFolderId);
   const tagFilter      = useFolderStore((s) => s.tagFilter);
 
+  const [sortBy, setSortBy] = useState('updatedAt');
+  const [sortOpen, setSortOpen] = useState(false);
+
   const filtered = notes.filter((note) => {
-    if (tagFilter && !note.tags?.includes(tagFilter)) {
-      return false;
-    }
-
-    if (activeFolderId === 'pinned') {
-      return note.pinned;
-    }
-
-    if (activeFolderId === 'all') {
-      return true;
-    }
-
+    if (tagFilter && !note.tags?.includes(tagFilter)) return false;
+    if (activeFolderId === 'pinned') return note.pinned;
+    if (activeFolderId === 'all')    return true;
     return note.folderId === activeFolderId;
   });
 
   const sorted = [...filtered].sort((a, b) => {
+    // Pinned always first
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    return new Date(b.updatedAt) - new Date(a.updatedAt);
+
+    if (sortBy === 'title') {
+      return (a.title || 'Untitled').localeCompare(b.title || 'Untitled');
+    }
+    return new Date(b[sortBy]) - new Date(a[sortBy]);
   });
+
+  const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? 'Sort';
 
   if (sorted.length === 0) {
     return (
@@ -76,15 +79,49 @@ export default function NoteList() {
   }
 
   return (
-    <ul className="note-list" role="listbox" aria-label="Notes">
-      {sorted.map((note) => (
-        <NoteItem
-          key={note.id}
-          note={note}
-          isActive={note.id === activeNoteId}
-          onSelect={() => setActiveNote(note.id)}
-        />
-      ))}
+    <>
+      {/* Sort control */}
+      <div className="note-list-sort">
+        <div className="note-list-sort__wrap">
+          <button
+            type="button"
+            className="note-list-sort__btn"
+            onClick={() => setSortOpen((v) => !v)}
+            aria-label="Sort notes"
+            title="Sort notes"
+          >
+            <ArrowUpDown size={11} />
+            <span>{currentSortLabel}</span>
+          </button>
+
+          {sortOpen && (
+            <div className="note-list-sort__menu" role="menu">
+              {SORT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`note-list-sort__option ${sortBy === opt.value ? 'note-list-sort__option--active' : ''}`}
+                  role="menuitem"
+                  onClick={() => { setSortBy(opt.value); setSortOpen(false); }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <ul className="note-list" role="listbox" aria-label="Notes">
+        {sorted.map((note) => (
+          <NoteItem
+            key={note.id}
+            note={note}
+            isActive={note.id === activeNoteId}
+            onSelect={() => setActiveNote(note.id)}
+          />
+        ))}
+      </ul>
 
       <style>{`
         .note-list {
@@ -95,7 +132,75 @@ export default function NoteList() {
           flex-direction: column;
           gap: 1px;
         }
+
+        .note-list-sort {
+          padding: 0 4px 4px;
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .note-list-sort__wrap {
+          position: relative;
+        }
+
+        .note-list-sort__btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 4px 8px;
+          border-radius: 7px;
+          border: 1px solid var(--border);
+          background: var(--bg-subtle);
+          color: var(--text-tertiary);
+          font-size: 0.7rem;
+          font-family: inherit;
+          cursor: pointer;
+          transition: background var(--t-fast), color var(--t-fast);
+        }
+
+        .note-list-sort__btn:hover {
+          background: var(--bg-muted);
+          color: var(--text-primary);
+        }
+
+        .note-list-sort__menu {
+          position: absolute;
+          right: 0;
+          top: calc(100% + 4px);
+          min-width: 140px;
+          background: var(--bg-elevated);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+          padding: 4px;
+          z-index: 30;
+          animation: fade-in 0.1s ease;
+        }
+
+        .note-list-sort__option {
+          display: block;
+          width: 100%;
+          padding: 7px 10px;
+          border: none;
+          background: none;
+          color: var(--text-primary);
+          font-size: 0.75rem;
+          font-family: inherit;
+          text-align: left;
+          border-radius: 7px;
+          cursor: pointer;
+          transition: background var(--t-fast);
+        }
+
+        .note-list-sort__option:hover {
+          background: var(--bg-hover);
+        }
+
+        .note-list-sort__option--active {
+          color: var(--brand);
+          font-weight: 600;
+        }
       `}</style>
-    </ul>
+    </>
   );
 }
