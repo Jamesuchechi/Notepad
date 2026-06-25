@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { safeLocalStorage } from '@/utils/storage';
 
 export const useSettingsStore = create(
   persist(
@@ -19,6 +20,9 @@ export const useSettingsStore = create(
       setFontSize: (fontSize) => set({ fontSize }),
       setLastOpenedNoteId: (id) => set({ lastOpenedNoteId: id }),
     }),
-    { name: 'brain_settings' }
+    {
+      name: 'brain_settings',
+      storage: safeLocalStorage,
+    }
   )
 );

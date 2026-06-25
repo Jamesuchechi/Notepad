@@ -3,15 +3,7 @@ import { Plus, MoreHorizontal, Edit2, Trash2, X } from 'lucide-react';
 import { useFolderStore } from '@/store/useFolderStore';
 import { useNoteStore } from '@/store/useNoteStore';
 
-const FOLDER_COLORS = [
-  '#6366f1',
-  '#ec4899',
-  '#f97316',
-  '#14b8a6',
-  '#10b981',
-  '#0ea5e9',
-  '#a855f7',
-];
+const FOLDER_COLORS = ['#6366f1', '#ec4899', '#f97316', '#14b8a6', '#10b981', '#0ea5e9', '#a855f7'];
 
 export default function FolderList() {
   const folders = useFolderStore((s) => s.folders);
@@ -132,7 +124,10 @@ export default function FolderList() {
 
       <ul className="folder-list__items" role="list">
         {smartFolders.map((item) => (
-          <li key={item.id} className={`folder-item ${activeFolderId === item.id ? 'folder-item--active' : ''}`}>
+          <li
+            key={item.id}
+            className={`folder-item ${activeFolderId === item.id ? 'folder-item--active' : ''}`}
+          >
             <button
               type="button"
               className="folder-item__button"
@@ -145,7 +140,10 @@ export default function FolderList() {
         ))}
 
         {folders.map((folder) => (
-          <li key={folder.id} className={`folder-item ${activeFolderId === folder.id ? 'folder-item--active' : ''}`}>
+          <li
+            key={folder.id}
+            className={`folder-item ${activeFolderId === folder.id ? 'folder-item--active' : ''}`}
+          >
             <button
               type="button"
               className="folder-item__button"
@@ -170,11 +168,22 @@ export default function FolderList() {
 
             {menuOpenId === folder.id && (
               <div className="folder-item__menu" role="menu">
-                <button className="folder-item__menu-action" type="button" onClick={() => openRenameFolder(folder)}>
+                <button
+                  className="folder-item__menu-action"
+                  type="button"
+                  onClick={() => openRenameFolder(folder)}
+                >
                   <Edit2 size={14} /> Rename
                 </button>
-                <button className="folder-item__menu-action" type="button" onClick={() => cycleFolderColor(folder.id)}>
-                  <span className="folder-item__color-swatch" style={{ backgroundColor: folder.color }} />
+                <button
+                  className="folder-item__menu-action"
+                  type="button"
+                  onClick={() => cycleFolderColor(folder.id)}
+                >
+                  <span
+                    className="folder-item__color-swatch"
+                    style={{ backgroundColor: folder.color }}
+                  />
                   Change colour
                 </button>
                 <div className="folder-item__menu-divider" aria-hidden="true" />
@@ -191,28 +200,36 @@ export default function FolderList() {
         ))}
       </ul>
 
-      {uniqueTags.length > 0 && (
-        <div className="tag-filter">
-          <div className="tag-filter__header">
-            <span>Tags</span>
-            {tagFilter && (
-              <button type="button" className="tag-filter__clear" onClick={clearTagFilter}>
-                Clear
-              </button>
-            )}
+      <div className="tag-filter">
+        <div className="tag-filter__header">
+          <span>Tags</span>
+          {tagFilter && (
+            <button type="button" className="tag-filter__clear" onClick={clearTagFilter}>
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="tag-filter__list">
+          {uniqueTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={`tag-pill ${tagFilter === tag ? 'tag-pill--active' : ''}`}
+              onClick={() => setTagFilter(tag)}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {folders.length === 0 && (
+        <div className="folder-list-empty">
+          <div className="folder-list-empty__emoji" aria-hidden="true">
+            📁
           </div>
-          <div className="tag-filter__list">
-            {uniqueTags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                className={`tag-pill ${tagFilter === tag ? 'tag-pill--active' : ''}`}
-                onClick={() => setTagFilter(tag)}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
+          <p>No folders yet.</p>
+          <p className="folder-list-empty__sub">Create one to organise your notes.</p>
         </div>
       )}
 
@@ -221,7 +238,12 @@ export default function FolderList() {
           <div className="folder-modal" ref={modalRef}>
             <div className="folder-modal__header">
               <strong>{modalState.folder ? 'Rename folder' : 'Create folder'}</strong>
-              <button className="icon-btn" onClick={() => setModalState({ isOpen: false, folder: null })} aria-label="Close">
+              <button
+                className="icon-btn"
+                onClick={() => setModalState({ isOpen: false, folder: null })}
+                aria-label="Close folder dialog"
+                title="Close folder dialog"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -236,7 +258,11 @@ export default function FolderList() {
               />
             </label>
             <div className="folder-modal__actions">
-              <button type="button" className="button button--secondary" onClick={() => setModalState({ isOpen: false, folder: null })}>
+              <button
+                type="button"
+                className="button button--secondary"
+                onClick={() => setModalState({ isOpen: false, folder: null })}
+              >
                 Cancel
               </button>
               <button type="button" className="button" onClick={handleSaveFolder}>
@@ -425,6 +451,30 @@ export default function FolderList() {
           gap: 6px;
         }
 
+        .folder-list-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          padding: 20px 12px;
+          border-radius: 16px;
+          background: var(--bg-subtle);
+          color: var(--text-secondary);
+          text-align: center;
+          animation: fade-in 0.18s ease;
+        }
+
+        .folder-list-empty__emoji {
+          font-size: 2rem;
+        }
+
+        .folder-list-empty__sub {
+          margin: 0;
+          font-size: 0.8rem;
+          color: var(--text-tertiary);
+        }
+
         .tag-pill {
           border: 1px solid var(--border);
           border-radius: 999px;
@@ -459,6 +509,7 @@ export default function FolderList() {
           border-radius: 20px;
           padding: 22px;
           box-shadow: 0 18px 50px rgba(15, 23, 42, 0.14);
+          animation: fade-in 0.14s ease;
         }
 
         .folder-modal__header {

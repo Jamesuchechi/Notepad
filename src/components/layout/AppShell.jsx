@@ -4,6 +4,7 @@ import EditorPane from './EditorPane';
 import SearchModal from '../search/SearchModal';
 import SettingsPanel from './SettingsPanel';
 import KeyboardShortcutsModal from './KeyboardShortcutsModal';
+import TemplateModal from './TemplateModal';
 import useKeyboardShortcuts from '@/hooks/useKeyboardShortcuts';
 import { useNoteStore } from '@/store/useNoteStore';
 
@@ -12,12 +13,12 @@ export default function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [forceSaveSignal, setForceSaveSignal] = useState(0);
 
   const createNote = useNoteStore((s) => s.createNote);
-  const notes = useNoteStore((s) => s.notes);
 
   const openSidebar = () => setSidebarOpen(true);
   const closeSidebar = () => setSidebarOpen(false);
@@ -27,6 +28,8 @@ export default function AppShell() {
   const closeSettings = () => setSettingsOpen(false);
   const openShortcuts = () => setShortcutsOpen(true);
   const closeShortcuts = () => setShortcutsOpen(false);
+  const openTemplate = () => setTemplateOpen(true);
+  const closeTemplate = () => setTemplateOpen(false);
 
   const toggleFocusMode = () => {
     setFocusMode((current) => !current);
@@ -40,11 +43,13 @@ export default function AppShell() {
     setSearchOpen(false);
     setSettingsOpen(false);
     setShortcutsOpen(false);
+    setTemplateOpen(false);
     setSidebarOpen(false);
   };
 
   useKeyboardShortcuts({
     onCreateNote: createNote,
+    onOpenTemplate: openTemplate,
     onOpenSearch: openSearch,
     onForceSave: forceSave,
     onTogglePreview: togglePreviewMode,
@@ -72,6 +77,7 @@ export default function AppShell() {
           onOpenSearch={openSearch}
           onOpenSettings={openSettings}
           onOpenShortcuts={openShortcuts}
+          onOpenTemplate={openTemplate}
         />
       </aside>
 
@@ -89,6 +95,7 @@ export default function AppShell() {
 
       <SearchModal open={searchOpen} onClose={closeSearch} />
       <SettingsPanel open={settingsOpen} onClose={closeSettings} />
+      <TemplateModal open={templateOpen} onClose={closeTemplate} />
       <KeyboardShortcutsModal open={shortcutsOpen} onClose={closeShortcuts} />
 
       {/* ── Scoped styles ─────────────────────────────────────── */}

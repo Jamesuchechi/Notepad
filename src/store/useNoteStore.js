@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsStore } from './useSettingsStore';
+import { safeLocalStorage } from '@/utils/storage';
 
 export const useNoteStore = create(
   persist(
@@ -56,6 +57,11 @@ export const useNoteStore = create(
         }
       },
 
+      clearAllNotes: () => {
+        set({ notes: [], activeNoteId: null });
+        useSettingsStore.getState().setLastOpenedNoteId(null);
+      },
+
       setActiveNote: (id) => {
         set({ activeNoteId: id });
         useSettingsStore.getState().setLastOpenedNoteId(id);
@@ -77,6 +83,7 @@ export const useNoteStore = create(
     }),
     {
       name: 'brain_notes',
+      storage: safeLocalStorage,
     }
   )
 );

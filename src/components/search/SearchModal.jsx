@@ -93,16 +93,22 @@ export default function SearchModal({ open, onClose }) {
               aria-label="Search notes"
             />
           </div>
-          <button type="button" className="icon-btn search-modal__close" onClick={onClose} aria-label="Close search">
+          <button type="button" className="icon-btn search-modal__close" onClick={onClose} aria-label="Close search" title="Close search">
             <X size={18} />
           </button>
         </div>
 
         <div className="search-modal__content">
           {!query ? (
-            <div className="search-modal__empty">Type to search note titles and content.</div>
+            <div className="search-modal__empty">
+              <div className="search-modal__empty-icon" aria-hidden="true">🔎</div>
+              <div>Type to search note titles and content.</div>
+            </div>
           ) : results.length === 0 ? (
-            <div className="search-modal__empty">No matches found.</div>
+            <div className="search-modal__empty">
+              <div className="search-modal__empty-icon" aria-hidden="true">🚫</div>
+              <div>No matches found. Try a different keyword.</div>
+            </div>
           ) : (
             <ul className="search-modal__results">
               {results.map((result) => (
@@ -139,6 +145,7 @@ export default function SearchModal({ open, onClose }) {
           box-shadow: 0 32px 80px rgba(15, 23, 42, 0.2);
           display: flex;
           flex-direction: column;
+          animation: fade-in 0.16s ease;
         }
 
         .search-modal__header {
@@ -180,10 +187,18 @@ export default function SearchModal({ open, onClose }) {
         }
 
         .search-modal__empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
           color: var(--text-tertiary);
           font-size: 0.95rem;
           padding: 28px 0;
           text-align: center;
+        }
+
+        .search-modal__empty-icon {
+          font-size: 1.8rem;
         }
 
         .search-modal__results {

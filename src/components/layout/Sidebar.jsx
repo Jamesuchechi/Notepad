@@ -5,7 +5,7 @@ import FolderList from '@/components/folders/FolderList';
 import NoteList from '@/components/notes/NoteList';
 import ImportButton from '@/components/notes/ImportButton';
 
-export default function Sidebar({ onClose, onOpenSearch, onOpenSettings, onOpenShortcuts }) {
+export default function Sidebar({ onClose, onOpenSearch, onOpenSettings, onOpenShortcuts, onOpenTemplate }) {
   const theme       = useSettingsStore((s) => s.theme);
   const toggleTheme = useSettingsStore((s) => s.toggleTheme);
   const createNote  = useNoteStore((s) => s.createNote);
@@ -54,7 +54,7 @@ export default function Sidebar({ onClose, onOpenSearch, onOpenSettings, onOpenS
           <button
             className="sidebar__new-note-btn"
             aria-label="New note"
-            onClick={() => createNote()}
+            onClick={() => onOpenTemplate?.()}
           >
             <PenLine size={15} strokeWidth={2} />
             <span>New note</span>

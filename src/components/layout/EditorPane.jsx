@@ -17,6 +17,7 @@ export default function EditorPane({ onOpenSidebar, previewMode, forceSaveSignal
         <button
           className="icon-btn"
           aria-label="Open sidebar"
+          title="Open sidebar"
           onClick={onOpenSidebar}
         >
           <PanelLeft size={18} />

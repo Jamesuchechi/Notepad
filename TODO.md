@@ -187,30 +187,31 @@ Phased plan from project setup to a fully polished app. Work through each phase 
 
 ## Phase 13 — Templates & Settings
 
-- [ ] Write `templates.js` with starter content for:
-  - [ ] Daily journal
-  - [ ] Meeting notes
-  - [ ] Todo list
-  - [ ] Blank (default)
-- [ ] Show template picker when creating a new note (or in a "New note" modal)
-- [ ] Build `SettingsPanel` (slide-in drawer or modal)
-  - [ ] Theme: system / light / dark
-  - [ ] Editor font size: small / medium / large
-  - [ ] "Clear all notes" with confirmation
-  - [ ] "Export all data" as zip
+- [x] Write `templates.js` with starter content for:
+  - [x] Daily journal
+  - [x] Meeting notes
+  - [x] Todo list
+  - [x] Blank (default)
+- [x] Show template picker when creating a new note (or in a "New note" modal)
+- [x] Build `SettingsPanel` (slide-in drawer or modal)
+  - [x] Theme: system / light / dark
+  - [x] Editor font size: small / medium / large
+  - [x] "Clear all notes" with confirmation
+  - [x] "Export all data" as zip
 
 ---
 
 ## Phase 14 — Polish & Code Blocks
 
-- [ ] Add Tiptap `CodeBlockLowlight` extension with `highlight.js`
-- [ ] Style code blocks to match app theme (dark in light mode, darker in dark mode)
-- [ ] Audit all components for consistent spacing, colour, and border-radius
-- [ ] Add subtle animations: sidebar note hover, modal open/close, new note slide-in
-- [ ] Add empty state illustrations for: no notes, no search results, empty folder
-- [ ] Tune dark mode — check every surface, input, and modal in dark
-- [ ] Add `title` attribute tooltips on all icon buttons
-- [ ] Test and fix any localStorage edge cases (quota exceeded, corrupted data)
+- [x] Add Tiptap `CodeBlockLowlight` extension with `highlight.js`
+- [x] Style code blocks to match app theme (dark in light mode, darker in dark mode)
+- [x] Audit all components for consistent spacing, colour, border-radius, and input states
+- [x] Add subtle animations: sidebar note hover, modal open/close, new note slide-in
+- [x] Add empty state illustrations for: no notes, no search results, empty folder
+- [x] Tune dark mode — check every surface, input, and modal in dark
+- [x] Add `title` attribute tooltips on all icon buttons
+- [x] Test and fix any localStorage edge cases (quota exceeded, corrupted data)
+- [x] Review accessibility and keyboard interactions for template / settings flows
 
 ---
 

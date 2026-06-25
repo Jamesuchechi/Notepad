@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { useNoteStore } from './useNoteStore';
+import { safeLocalStorage } from '@/utils/storage';
 
 export const useFolderStore = create(
   persist(
@@ -57,6 +58,7 @@ export const useFolderStore = create(
     }),
     {
       name: 'brain_folders',
+      storage: safeLocalStorage,
     }
   )
 );

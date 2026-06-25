@@ -11,10 +11,13 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@tiptap/extension-code-block-lowlight": "^3.27.1",
     "@tiptap/react": "^3.27.1",
     "@tiptap/starter-kit": "^3.27.1",
     "file-saver": "^2.0.5",
+    "highlight.js": "^11.11.1",
     "jszip": "^3.10.1",
+    "lowlight": "^3.3.0",
     "lucide-react": "^1.21.0",
     "react-markdown": "^10.1.0",
     "turndown": "^7.2.4",

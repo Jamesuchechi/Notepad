@@ -1,12 +1,16 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useSettingsStore } from '@/store/useSettingsStore';
+import { useNoteStore } from '@/store/useNoteStore';
+import { exportAllData } from '@/utils/export';
 
 export default function SettingsPanel({ open, onClose }) {
   const theme = useSettingsStore((state) => state.theme);
   const fontSize = useSettingsStore((state) => state.fontSize);
   const toggleTheme = useSettingsStore((state) => state.toggleTheme);
   const setFontSize = useSettingsStore((state) => state.setFontSize);
+  const clearAllNotes = useNoteStore((state) => state.clearAllNotes);
+  const notes = useNoteStore((state) => state.notes);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -33,7 +37,7 @@ export default function SettingsPanel({ open, onClose }) {
             <h2>Settings</h2>
             <p>Customize theme and editor preferences.</p>
           </div>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close settings">
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close settings" title="Close settings">
             <X size={16} />
           </button>
         </div>
@@ -61,6 +65,32 @@ export default function SettingsPanel({ open, onClose }) {
             ))}
           </div>
         </div>
+
+        <div className="settings-panel__group">
+          <h3>Data</h3>
+          <p>Export your local notes and settings as a backup zip file.</p>
+          <div className="settings-panel__actions">
+            <button
+              type="button"
+              className="settings-panel__control"
+              onClick={() => exportAllData(notes, { theme, fontSize })}
+            >
+              Export all data
+            </button>
+            <button
+              type="button"
+              className="settings-panel__control settings-panel__control--danger"
+              onClick={() => {
+                if (window.confirm('Clear all notes? This cannot be undone.')) {
+                  clearAllNotes();
+                  onClose();
+                }
+              }}
+            >
+              Clear all notes
+            </button>
+          </div>
+        </div>
       </div>
 
       <style>{`
@@ -82,6 +112,7 @@ export default function SettingsPanel({ open, onClose }) {
           border-radius: 20px;
           padding: 24px;
           box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+          animation: fade-in 0.15s ease;
         }
 
         .settings-panel__header {
@@ -142,6 +173,17 @@ export default function SettingsPanel({ open, onClose }) {
           display: flex;
           gap: 10px;
           flex-wrap: wrap;
+        }
+
+        .settings-panel__actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 8px;
+        }
+
+        .settings-panel__control {
+          min-width: 170px;
         }
 
         .settings-panel__option--active {

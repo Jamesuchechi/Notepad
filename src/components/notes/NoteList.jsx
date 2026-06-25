@@ -7,15 +7,15 @@ import NoteItem from './NoteItem';
 const SORT_OPTIONS = [
   { value: 'updatedAt', label: 'Last edited' },
   { value: 'createdAt', label: 'Date created' },
-  { value: 'title',     label: 'Title (A–Z)'  },
+  { value: 'title', label: 'Title (A–Z)' },
 ];
 
 export default function NoteList() {
-  const notes         = useNoteStore((s) => s.notes);
-  const activeNoteId  = useNoteStore((s) => s.activeNoteId);
+  const notes = useNoteStore((s) => s.notes);
+  const activeNoteId = useNoteStore((s) => s.activeNoteId);
   const setActiveNote = useNoteStore((s) => s.setActiveNote);
   const activeFolderId = useFolderStore((s) => s.activeFolderId);
-  const tagFilter      = useFolderStore((s) => s.tagFilter);
+  const tagFilter = useFolderStore((s) => s.tagFilter);
 
   const [sortBy, setSortBy] = useState('updatedAt');
   const [sortOpen, setSortOpen] = useState(false);
@@ -23,7 +23,7 @@ export default function NoteList() {
   const filtered = notes.filter((note) => {
     if (tagFilter && !note.tags?.includes(tagFilter)) return false;
     if (activeFolderId === 'pinned') return note.pinned;
-    if (activeFolderId === 'all')    return true;
+    if (activeFolderId === 'all') return true;
     return note.folderId === activeFolderId;
   });
 
@@ -42,6 +42,7 @@ export default function NoteList() {
   if (sorted.length === 0) {
     return (
       <div className="note-list-empty">
+        <div className="note-list-empty__icon" aria-hidden="true">📝</div>
         <p className="note-list-empty__hint">No notes yet.</p>
         <p className="note-list-empty__hint note-list-empty__hint--sub">
           Hit <kbd className="note-list-empty__kbd">⌘ N</kbd> to start writing.
@@ -53,10 +54,19 @@ export default function NoteList() {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 10px;
             padding: 32px 16px;
             flex: 1;
+            animation: fade-in 0.18s ease;
           }
+
+          .note-list-empty__icon {
+            font-size: 2.4rem;
+          }
+          .note-list-empty__icon {
+            font-size: 2.4rem;
+          }
+
           .note-list-empty__hint {
             font-size: 0.8125rem;
             color: var(--text-tertiary);

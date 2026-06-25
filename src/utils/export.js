@@ -70,6 +70,22 @@ export async function exportAllAsZip(notes) {
   saveAs(blob, `brain-notes-${datestamp()}.zip`);
 }
 
+export async function exportAllData(notes, settings) {
+  const zip = new JSZip();
+  const folder = zip.folder('brain-notes');
+
+  notes.forEach((note) => {
+    const title = note.title?.trim() || 'Untitled';
+    const body = td.turndown(note.content || '');
+    const md = `# ${title}\n\n${body}`;
+    folder.file(`${sanitize(title)}.md`, md);
+  });
+
+  zip.file('settings.json', JSON.stringify(settings, null, 2));
+  const blob = await zip.generateAsync({ type: 'blob' });
+  saveAs(blob, `brain-data-${datestamp()}.zip`);
+}
+
 // ─── Helpers ────────────────────────────────────────────────────
 
 function stripHtml(html) {

@@ -27,7 +27,7 @@ export default function KeyboardShortcutsModal({ open, onClose }) {
             <h2>Keyboard shortcuts</h2>
             <p>Quick commands for faster note workflows.</p>
           </div>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close shortcuts">
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close shortcuts" title="Close shortcuts">
             <X size={16} />
           </button>
         </div>
@@ -83,6 +83,7 @@ export default function KeyboardShortcutsModal({ open, onClose }) {
           border-radius: 20px;
           padding: 24px;
           box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+          animation: fade-in 0.15s ease;
         }
 
         .shortcuts-modal__header {

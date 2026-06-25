@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 
 export default function useKeyboardShortcuts({
   onCreateNote,
+  onOpenTemplate,
   onOpenSearch,
   onForceSave,
   onTogglePreview,
@@ -19,7 +20,11 @@ export default function useKeyboardShortcuts({
 
       if (mod && key === 'n') {
         event.preventDefault();
-        onCreateNote?.();
+        if (onOpenTemplate) {
+          onOpenTemplate();
+        } else {
+          onCreateNote?.();
+        }
         return;
       }
 
@@ -68,6 +73,7 @@ export default function useKeyboardShortcuts({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     onCreateNote,
+    onOpenTemplate,
     onOpenSearch,
     onForceSave,
     onTogglePreview,

@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { createLowlight } from 'lowlight';
+import javascript from 'highlight.js/lib/languages/javascript';
+import css from 'highlight.js/lib/languages/css';
+import bash from 'highlight.js/lib/languages/bash';
+import xml from 'highlight.js/lib/languages/xml';
+import markdown from 'highlight.js/lib/languages/markdown';
 import TurndownService from 'turndown';
 import {
   Bold,
@@ -12,17 +19,28 @@ import {
   List,
   ListOrdered,
   Quote,
+  Code,
   Minus,
   RotateCcw,
   RotateCw,
   Eye,
   Maximize2,
+  ChevronDown,
+  ChevronUp,
   Plus,
   X,
 } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
 import ExportMenu from '@/components/editor/ExportMenu';
 import MarkdownPreview from '@/components/editor/MarkdownPreview';
+
+const lowlight = createLowlight();
+lowlight.register('javascript', javascript);
+lowlight.register('css', css);
+lowlight.register('bash', bash);
+lowlight.register('html', xml);
+lowlight.register('xml', xml);
+lowlight.register('markdown', markdown);
 
 const DEFAULT_DOC = '<p></p>';
 const DEBOUNCE_DELAY = 500;
@@ -41,12 +59,21 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
   const [status, setStatus] = useState('Saved');
   const [stats, setStats] = useState({ words: 0, chars: 0, readTime: 0 });
   const [showFocusToolbar, setShowFocusToolbar] = useState(false);
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
   const saveTimer = useRef(null);
   const revealTimer = useRef(null);
   const lastSaveRef = useRef({ noteId: note.id, title: note.title ?? '' });
 
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit.configure({ codeBlock: false }),
+      CodeBlockLowlight.configure({
+        lowlight,
+        HTMLAttributes: {
+          class: 'code-block',
+        },
+      }),
+    ],
     content: note.content || DEFAULT_DOC,
     editorProps: {
       attributes: {
@@ -146,6 +173,10 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
     }
   };
 
+  const toggleMobileDetails = () => {
+    setMobileDetailsOpen((current) => !current);
+  };
+
   const handleFocusMouseMove = (event) => {
     if (!focusMode) return;
     if (event.clientY > 80) return;
@@ -230,6 +261,12 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
         active: editor?.isActive('blockquote'),
       },
       {
+        label: 'Code block',
+        icon: Code,
+        action: () => editor?.chain().focus().toggleCodeBlock().run(),
+        active: editor?.isActive('codeBlock'),
+      },
+      {
         label: 'Horizontal rule',
         icon: Minus,
         action: () => editor?.chain().focus().setHorizontalRule().run(),
@@ -267,99 +304,111 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
           onBlur={handleTitleBlur}
           aria-label="Note title"
         />
+        <button
+          type="button"
+          className="details-toggle-btn"
+          onClick={toggleMobileDetails}
+          aria-expanded={mobileDetailsOpen}
+          aria-label={mobileDetailsOpen ? 'Hide note details' : 'Show note details'}
+        >
+          {mobileDetailsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          <span>{mobileDetailsOpen ? 'Hide details' : 'Show details'}</span>
+        </button>
       </div>
 
-      {/* ── Metadata (Phase 9) ────────────────────────────────── */}
-      <div className="note-meta-bar">
-        <span className="note-meta-item">
-          Created{' '}
-          <time dateTime={note.createdAt}>{formatDate(note.createdAt)}</time>
-        </span>
-        <span className="note-meta-sep" aria-hidden="true">·</span>
-        <span className="note-meta-item">
-          Edited{' '}
-          <time dateTime={note.updatedAt}>{formatDate(note.updatedAt)}</time>
-        </span>
-      </div>
-
-      {/* ── Tags ──────────────────────────────────────────────── */}
-      <div className="note-tags-wrapper">
-        <div className="note-tags">
-          {tags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              className="note-tag"
-              onClick={() => handleRemoveTag(tag)}
-              title={`Remove ${tag}`}
-            >
-              <span>{tag}</span>
-              <X size={12} />
-            </button>
-          ))}
+      <div className={`editor-details${mobileDetailsOpen ? ' editor-details--open' : ' editor-details--closed'}`}>
+        {/* ── Metadata (Phase 9) ────────────────────────────────── */}
+        <div className="note-meta-bar">
+          <span className="note-meta-item">
+            Created{' '}
+            <time dateTime={note.createdAt}>{formatDate(note.createdAt)}</time>
+          </span>
+          <span className="note-meta-sep" aria-hidden="true">·</span>
+          <span className="note-meta-item">
+            Edited{' '}
+            <time dateTime={note.updatedAt}>{formatDate(note.updatedAt)}</time>
+          </span>
         </div>
-        <div className="note-tag-input-wrapper">
-          <input
-            className="note-tag-input"
-            type="text"
-            placeholder="Add tag and press Enter"
-            value={tagInput}
-            onChange={(event) => setTagInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                handleAddTag();
-              }
-            }}
-            aria-label="Add tag"
-          />
-          <button type="button" className="note-tag-add-btn" onClick={handleAddTag} aria-label="Add tag">
-            <Plus size={14} />
-          </button>
-        </div>
-      </div>
 
-      {/* ── Toolbar ───────────────────────────────────────────── */}
-      <div className={`editor-toolbar${focusMode && !showFocusToolbar ? ' editor-toolbar--hidden' : ''}`} role="toolbar" aria-label="Formatting toolbar">
-        <div className="editor-toolbar__formatting">
-          {toolbarButtons.map((button) => {
-            const Icon = button.icon;
-            return (
+        {/* ── Tags ──────────────────────────────────────────────── */}
+        <div className="note-tags-wrapper">
+          <div className="note-tags">
+            {tags.map((tag) => (
               <button
-                key={button.label}
+                key={tag}
                 type="button"
-                className={`editor-toolbar__button${button.active ? ' editor-toolbar__button--active' : ''}`}
-                onClick={button.action}
-                disabled={!editor}
-                title={button.label}
+                className="note-tag"
+                onClick={() => handleRemoveTag(tag)}
+                title={`Remove ${tag}`}
               >
-                <Icon size={16} />
+                <span>{tag}</span>
+                <X size={12} />
               </button>
-            );
-          })}
-          <button
-            type="button"
-            className="editor-toolbar__button"
-            onClick={() => onTogglePreview?.()}
-            disabled={!editor}
-            title={previewMode ? 'Return to editor' : 'Preview markdown'}
-          >
-            <Eye size={16} />
-          </button>
-          <button
-            type="button"
-            className="editor-toolbar__button"
-            onClick={() => onToggleFocusMode?.()}
-            disabled={!editor}
-            title={focusMode ? 'Exit focus mode' : 'Enter focus mode'}
-          >
-            <Maximize2 size={16} />
-          </button>
+            ))}
+          </div>
+          <div className="note-tag-input-wrapper">
+            <input
+              className="note-tag-input"
+              type="text"
+              placeholder="Add tag and press Enter"
+              value={tagInput}
+              onChange={(event) => setTagInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  handleAddTag();
+                }
+              }}
+              aria-label="Add tag"
+            />
+            <button type="button" className="note-tag-add-btn" onClick={handleAddTag} aria-label="Add tag">
+              <Plus size={14} />
+            </button>
+          </div>
         </div>
 
-        {/* Export menu lives in the toolbar (Phase 8) */}
-        <div className="editor-toolbar__export">
-          <ExportMenu note={{ ...note, title, content: editor?.getHTML() ?? note.content }} />
+        {/* ── Toolbar ───────────────────────────────────────────── */}
+        <div className={`editor-toolbar${focusMode && !showFocusToolbar ? ' editor-toolbar--hidden' : ''}`} role="toolbar" aria-label="Formatting toolbar">
+          <div className="editor-toolbar__formatting">
+            {toolbarButtons.map((button) => {
+              const Icon = button.icon;
+              return (
+                <button
+                  key={button.label}
+                  type="button"
+                  className={`editor-toolbar__button${button.active ? ' editor-toolbar__button--active' : ''}`}
+                  onClick={button.action}
+                  disabled={!editor}
+                  title={button.label}
+                >
+                  <Icon size={16} />
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              className="editor-toolbar__button"
+              onClick={() => onTogglePreview?.()}
+              disabled={!editor}
+              title={previewMode ? 'Return to editor' : 'Preview markdown'}
+            >
+              <Eye size={16} />
+            </button>
+            <button
+              type="button"
+              className="editor-toolbar__button"
+              onClick={() => onToggleFocusMode?.()}
+              disabled={!editor}
+              title={focusMode ? 'Exit focus mode' : 'Enter focus mode'}
+            >
+              <Maximize2 size={16} />
+            </button>
+          </div>
+
+          {/* Export menu lives in the toolbar (Phase 8) */}
+          <div className="editor-toolbar__export">
+            <ExportMenu note={{ ...note, title, content: editor?.getHTML() ?? note.content }} />
+          </div>
         </div>
       </div>
 
@@ -375,7 +424,7 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
       </div>
 
       {/* ── Footer (Phase 9 stats) ────────────────────────────── */}
-      <footer className={`editor-footer${focusMode ? ' editor-footer--hidden' : ''}`}>
+      <footer className={`editor-footer${focusMode ? ' editor-footer--hidden' : ''}${!mobileDetailsOpen ? ' editor-footer--mobile-hidden' : ''}`}>
         <div className="editor-footer__stats">
           <span>{stats.words} {stats.words === 1 ? 'word' : 'words'}</span>
           <span className="editor-footer__sep" aria-hidden="true">·</span>
@@ -571,6 +620,151 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
           min-height: 0;
         }
 
+        .editor-details {
+          display: block;
+          transition: max-height 0.25s ease, opacity 0.25s ease;
+          overflow: hidden;
+          max-height: 999px;
+          opacity: 1;
+        }
+
+        .editor-details.editor-details--closed {
+          max-height: 0;
+          opacity: 0;
+          padding: 0;
+          margin: 0;
+        }
+
+        .details-toggle-btn {
+          display: none;
+          align-items: center;
+          gap: 6px;
+          margin-left: 12px;
+          padding: 8px 10px;
+          border-radius: 999px;
+          border: 1px solid var(--border);
+          background: var(--bg-subtle);
+          color: var(--text-secondary);
+          font-size: 0.82rem;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
+        .details-toggle-btn:hover {
+          background: var(--bg-muted);
+          color: var(--text-primary);
+        }
+
+        .editor-footer--mobile-hidden {
+          display: none;
+        }
+
+        @media (max-width: 640px) {
+          .details-toggle-btn {
+            display: inline-flex;
+          }
+
+          .editor-details.editor-details--closed {
+            max-height: 0;
+            opacity: 0;
+            padding: 0;
+            margin: 0;
+          }
+
+          .editor-details.editor-details--open {
+            display: block;
+          }
+
+          .editor-details {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+          }
+
+          .note-title-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 18px 16px 0;
+          }
+
+          .note-title-input {
+            font-size: 1.25rem;
+          }
+
+          .note-meta-bar {
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 6px 16px 0;
+          }
+
+          .note-tags-wrapper {
+            padding: 12px 16px 0;
+          }
+
+          .note-tag-input-wrapper {
+            grid-template-columns: 1fr auto;
+          }
+
+          .note-tag-input {
+            font-size: 0.85rem;
+            padding: 10px 12px;
+          }
+
+          .note-tag-add-btn {
+            width: 38px;
+            height: 38px;
+          }
+
+          .editor-toolbar {
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px 16px 8px;
+          }
+
+          .editor-toolbar__formatting {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            margin-right: 8px;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .editor-toolbar__formatting::-webkit-scrollbar {
+            height: 6px;
+          }
+
+          .editor-toolbar__formatting::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.5);
+            border-radius: 999px;
+          }
+
+          .editor-toolbar__button {
+            width: 32px;
+            height: 32px;
+          }
+
+          .editor-toolbar__export {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+          }
+
+          .note-editor-content {
+            padding: 18px 16px 24px;
+          }
+
+          .editor-footer {
+            padding: 10px 16px 14px;
+            gap: 6px;
+          }
+
+          .editor-footer__stats {
+            flex-wrap: wrap;
+            gap: 6px;
+          }
+        }
+
         .note-preview-view {
           background: var(--bg-base);
           border: 1px solid var(--border);
@@ -614,6 +808,89 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
         }
 
         .editor-footer__sep { color: var(--text-tertiary); }
+
+        @media (max-width: 640px) {
+          .note-title-wrapper {
+            padding: 18px 16px 0;
+          }
+
+          .note-title-input {
+            font-size: 1.25rem;
+          }
+
+          .note-meta-bar {
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 6px 16px 0;
+          }
+
+          .note-tags-wrapper {
+            padding: 12px 16px 0;
+          }
+
+          .note-tag-input-wrapper {
+            grid-template-columns: 1fr auto;
+          }
+
+          .note-tag-input {
+            font-size: 0.85rem;
+            padding: 10px 12px;
+          }
+
+          .note-tag-add-btn {
+            width: 38px;
+            height: 38px;
+          }
+
+          .editor-toolbar {
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px 16px 8px;
+          }
+
+          .editor-toolbar__formatting {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            margin-right: 8px;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .editor-toolbar__formatting::-webkit-scrollbar {
+            height: 6px;
+          }
+
+          .editor-toolbar__formatting::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.5);
+            border-radius: 999px;
+          }
+
+          .editor-toolbar__button {
+            width: 32px;
+            height: 32px;
+          }
+
+          .editor-toolbar__export {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+          }
+
+          .note-editor-content {
+            padding: 18px 16px 24px;
+          }
+
+          .editor-footer {
+            padding: 10px 16px 14px;
+            gap: 6px;
+          }
+
+          .editor-footer__stats {
+            flex-wrap: wrap;
+            gap: 6px;
+          }
+        }
       `}</style>
     </div>
   );

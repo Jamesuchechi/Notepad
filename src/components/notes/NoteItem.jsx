@@ -155,7 +155,10 @@ export default function NoteItem({ note, isActive, onSelect }) {
           user-select: none;
         }
 
-        .note-item:hover { background-color: var(--bg-hover); }
+        .note-item:hover {
+          background-color: var(--bg-hover);
+          transform: translateX(1px);
+        }
         .note-item--active { background-color: var(--bg-active); }
         .note-item--active .note-item__title { color: var(--brand); }
 
