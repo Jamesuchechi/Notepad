@@ -4,7 +4,7 @@ Phased plan from project setup to a fully polished app. Work through each phase 
 
 ---
 
--## Phase 1 — Project Setup
+## Phase 1 — Project Setup
 
 - [x] Scaffold project with Vite: `npm create vite@latest brain -- --template react`
 - [x] Install core dependencies
@@ -12,12 +12,12 @@ Phased plan from project setup to a fully polished app. Work through each phase 
   npm install zustand @tiptap/react @tiptap/starter-kit tailwindcss lucide-react uuid jszip file-saver
   npm install -D @tailwindcss/typography autoprefixer postcss
   ```
- - [x] Configure Tailwind (`tailwind.config.js`, `postcss.config.js`, import in `index.css`)
- - [x] Set up folder structure (`components/`, `store/`, `hooks/`, `utils/`)
- - [x] Configure path aliases in `vite.config.js` (e.g. `@/` → `src/`)
- - [x] Add base global styles (font, reset, scrollbar, selection colour)
- - [x] Set up `eslint` + `prettier` for code consistency
- - [x] Confirm dev server runs cleanly at `localhost:5173`
+- [x] Configure Tailwind (`tailwind.config.js`, `postcss.config.js`, import in `index.css`)
+- [x] Set up folder structure (`components/`, `store/`, `hooks/`, `utils/`)
+- [x] Configure path aliases in `vite.config.js` (e.g. `@/` → `src/`)
+- [x] Add base global styles (font, reset, scrollbar, selection colour)
+- [x] Set up `eslint` + `prettier` for code consistency
+- [x] Confirm dev server runs cleanly at `localhost:5173`
 
 ---
 
@@ -215,9 +215,83 @@ Phased plan from project setup to a fully polished app. Work through each phase 
 
 ---
 
-## Phase 15 — Final QA & Deploy
+## Phase 15 — AI Layer
+
+### Setup
+- [ ] Install Anthropic SDK: `npm install @anthropic-ai/sdk`
+- [ ] Create `src/utils/ai.js` — central wrapper around Anthropic API calls
+  - [ ] Streaming support via `stream()` helper
+  - [ ] Shared error handling and loading state management
+  - [ ] Request queue to prevent concurrent flood
+  - [ ] Graceful no-op fallback when API is unavailable
+- [ ] Add `VITE_ANTHROPIC_API_KEY` to `.env.local` and document in `README.md`
+- [ ] Add AI toggles to `useSettingsStore`: `aiEnabled`, per-feature flags
+- [ ] Add *"AI"* section to keyboard shortcuts modal (`Cmd+Shift+A` for Chat)
+
+### Tier 1 — Core AI Features
+
+- [ ] Build `AIActionMenu` component
+  - [ ] Appears as a floating toolbar when the user selects text in the editor
+  - [ ] Actions: *Improve writing*, *Make shorter*, *Make longer*, *Fix grammar*, *Continue writing*, *Change tone*
+  - [ ] Streams AI response back into editor, replacing or appending to the selection
+  - [ ] Dismiss with `Escape` or clicking outside
+- [ ] Build `SummarizeButton` in editor toolbar
+  - [ ] Summarises full note content on click
+  - [ ] Inserts summary as a collapsible callout block at the top of the note
+  - [ ] Shows `AIStatusIndicator` while generating
+- [ ] Build `AISearch` — semantic search mode inside `SearchModal`
+  - [ ] Toggle between *Keyword* and *AI* search mode
+  - [ ] Sends query + all note titles/snippets to AI, returns ranked relevant notes
+  - [ ] Gracefully falls back to keyword search if API fails
+
+### Tier 2 — Smart Features
+
+- [ ] Build `JournalPrompt`
+  - [ ] Shown when opening a blank journal template
+  - [ ] AI generates a reflective question based on the current date
+  - [ ] Dismiss or insert the prompt into the note as a starting line
+- [ ] Build `AutoTagSuggestion`
+  - [ ] Triggers after note content settles (debounce ~2s after last edit)
+  - [ ] AI suggests up to 5 relevant tags
+  - [ ] Shows non-intrusive chip suggestions below tag input: *"+ productivity  + react  + ideas"*
+  - [ ] One click to apply any or all suggestions
+- [ ] Build `RelatedNotes` panel
+  - [ ] Shown as a collapsible section at the bottom of `EditorPane`
+  - [ ] AI compares current note to others in store, surfaces top 3 related notes
+  - [ ] Click a related note to open it
+  - [ ] *"Link this note"* button to insert an inline reference
+
+### Tier 3 — Power Features
+
+- [ ] Build `ChatWithNotes` modal (`Cmd+Shift+A`)
+  - [ ] Full conversation UI — user asks questions, AI answers using the note library as context
+  - [ ] Sends all notes as context with each message (chunked if large)
+  - [ ] Cites which note(s) the answer came from, each citation clickable to open the note
+  - [ ] Conversation history preserved for the session
+- [ ] Build `VoiceToNote`
+  - [ ] Microphone button in sidebar or toolbar
+  - [ ] Records audio → transcribes via Web Speech API
+  - [ ] AI cleans up and formats the transcript, creates a new note automatically
+- [ ] Build `WeeklyDigest`
+  - [ ] Button in settings or sidebar footer: *"Generate this week's digest"*
+  - [ ] AI reads all notes edited in the last 7 days
+  - [ ] Produces a structured summary: themes, highlights, open threads
+  - [ ] Creates a new pinned note with the digest content
+
+### Cross-cutting AI Concerns
+
+- [ ] Build `AIStatusIndicator` — subtle pulsing dot in footer shown whenever AI is working
+- [ ] Add per-feature AI toggles in `SettingsPanel` (disable individual features)
+- [ ] Ensure every AI feature has a graceful no-op fallback if the API is unavailable
+- [ ] Rate limit awareness — queue concurrent AI requests, show a friendly message if overwhelmed
+- [ ] Add AI usage section to keyboard shortcuts reference modal
+
+---
+
+## Phase 16 — Final QA & Deploy
 
 - [ ] Test full flow end to end: create, edit, organise, search, export, import
+- [ ] Test all AI features: action menu, summarise, search, journal prompt, auto-tag, related notes, chat, voice, digest
 - [ ] Test in Chrome, Firefox, Safari
 - [ ] Test on mobile screen widths (sidebar collapse behaviour)
 - [ ] Lighthouse audit — aim for 95+ performance, 100 accessibility

@@ -62,7 +62,85 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
   const saveTimer = useRef(null);
   const revealTimer = useRef(null);
-  const lastSaveRef = useRef({ noteId: note.id, title: note.title ?? '' });
+  const lastSaveRef = useRef({ noteId: note.id, title: note.title ?? '', tags: note.tags ?? [], content: note.content || DEFAULT_DOC });
+  const latestTitleRef = useRef(title);
+  const latestTagsRef = useRef(tags);
+  const latestNoteIdRef = useRef(note.id);
+  const isSyncingRef = useRef(false);
+
+  useEffect(() => {
+    latestTitleRef.current = title;
+  }, [title]);
+
+  useEffect(() => {
+    latestTagsRef.current = tags;
+  }, [tags]);
+
+  const flushSave = useCallback(
+    (nextContent, nextTitle, nextTags, nextNoteId) => {
+      const noteId = nextNoteId ?? latestNoteIdRef.current;
+      const currentTitle = typeof nextTitle === 'string' ? nextTitle : latestTitleRef.current;
+      const currentTags = Array.isArray(nextTags) ? nextTags : latestTagsRef.current;
+      if (
+        lastSaveRef.current.noteId === noteId &&
+        lastSaveRef.current.content === nextContent &&
+        lastSaveRef.current.title === currentTitle &&
+        JSON.stringify(lastSaveRef.current.tags) === JSON.stringify(currentTags)
+      ) {
+        setStatus('Saved');
+        saveTimer.current = null;
+        return;
+      }
+
+      const savePayload = { content: nextContent };
+      if (typeof currentTitle === 'string') savePayload.title = currentTitle;
+      if (Array.isArray(currentTags)) savePayload.tags = currentTags;
+      updateNote(noteId, savePayload);
+      setStatus('Saved');
+      lastSaveRef.current = { noteId, title: currentTitle, tags: currentTags, content: nextContent };
+      saveTimer.current = null;
+    },
+    [note.id, updateNote]
+  );
+
+  const scheduleSave = useCallback(
+    (nextContent, nextTitle, nextTags, nextNoteId) => {
+      const currentTitle = typeof nextTitle === 'string' ? nextTitle : latestTitleRef.current;
+      const currentTags = Array.isArray(nextTags) ? nextTags : latestTagsRef.current;
+      const noteId = nextNoteId ?? latestNoteIdRef.current;
+
+      if (
+        lastSaveRef.current.noteId === noteId &&
+        lastSaveRef.current.content === nextContent &&
+        lastSaveRef.current.title === currentTitle &&
+        JSON.stringify(lastSaveRef.current.tags) === JSON.stringify(currentTags)
+      ) {
+        if (saveTimer.current) {
+          window.clearTimeout(saveTimer.current);
+          saveTimer.current = null;
+        }
+        setStatus('Saved');
+        return;
+      }
+
+      if (saveTimer.current) {
+        window.clearTimeout(saveTimer.current);
+      }
+      setStatus('Saving…');
+      saveTimer.current = window.setTimeout(() => {
+        flushSave(nextContent, nextTitle, nextTags, noteId);
+      }, DEBOUNCE_DELAY);
+    },
+    [flushSave]
+  );
+
+  const updateEditorStats = useCallback((editorInstance) => {
+    const text = editorInstance.storage?.text?.text ?? editorInstance.getText();
+    const words = text.trim().length > 0 ? text.trim().split(/\s+/).length : 0;
+    const chars = text.length;
+    const readTime = words === 0 ? 0 : Math.max(1, Math.ceil(words / 200));
+    setStats({ words, chars, readTime });
+  }, []);
 
   const editor = useEditor({
     extensions: [
@@ -86,50 +164,39 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
       updateEditorStats(editor);
     },
     onUpdate: ({ editor }) => {
+      if (isSyncingRef.current) {
+        isSyncingRef.current = false;
+        return;
+      }
       updateEditorStats(editor);
-      scheduleSave(editor.getHTML(), title);
+      scheduleSave(editor.getHTML(), latestTitleRef.current, latestTagsRef.current, latestNoteIdRef.current);
     },
   });
-
-  const updateEditorStats = useCallback((editorInstance) => {
-    const text = editorInstance.storage?.text?.text ?? editorInstance.getText();
-    const words = text.trim().length > 0 ? text.trim().split(/\s+/).length : 0;
-    const chars = text.length;
-    const readTime = words === 0 ? 0 : Math.max(1, Math.ceil(words / 200));
-    setStats({ words, chars, readTime });
-  }, []);
-
-  const flushSave = useCallback(
-    (nextContent, nextTitle, nextTags, nextNoteId) => {
-      const noteId = nextNoteId ?? note.id;
-      const savePayload = { content: nextContent };
-      if (typeof nextTitle === 'string') savePayload.title = nextTitle;
-      if (Array.isArray(nextTags)) savePayload.tags = nextTags;
-      updateNote(noteId, savePayload);
-      setStatus('Saved');
-      lastSaveRef.current = { noteId, title: nextTitle ?? title, tags: nextTags ?? tags };
-      saveTimer.current = null;
-    },
-    [note.id, title, tags, updateNote]
-  );
-
-  const scheduleSave = useCallback(
-    (nextContent, nextTitle, nextTags) => {
-      if (saveTimer.current) window.clearTimeout(saveTimer.current);
-      setStatus('Saving…');
-      saveTimer.current = window.setTimeout(() => {
-        flushSave(nextContent, nextTitle, nextTags);
-      }, DEBOUNCE_DELAY);
-    },
-    [flushSave]
-  );
 
   useEffect(() => {
     setTitle(note.title ?? '');
     setTags(note.tags ?? []);
-    lastSaveRef.current = { noteId: note.id, title: note.title ?? '', tags: note.tags ?? [] };
+    const previousNoteId = latestNoteIdRef.current;
     if (!editor) return;
-    editor.commands.setContent(note.content || DEFAULT_DOC, false);
+
+    if (note.id !== previousNoteId) {
+      latestNoteIdRef.current = note.id;
+      isSyncingRef.current = true;
+      editor.commands.setContent(note.content || DEFAULT_DOC, false);
+    } else {
+      const currentContent = editor.getHTML();
+      if (note.content && note.content !== currentContent) {
+        isSyncingRef.current = true;
+        editor.commands.setContent(note.content || DEFAULT_DOC, false);
+      }
+    }
+
+    lastSaveRef.current = {
+      noteId: note.id,
+      title: note.title ?? '',
+      tags: note.tags ?? [],
+      content: note.content || DEFAULT_DOC,
+    };
     updateEditorStats(editor);
   }, [note.id, note.title, note.content, note.tags, editor, updateEditorStats]);
 
@@ -164,12 +231,12 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
   const handleTitleChange = (event) => {
     const nextTitle = event.target.value;
     setTitle(nextTitle);
-    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, nextTitle, tags);
+    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, nextTitle, latestTagsRef.current, latestNoteIdRef.current);
   };
 
   const handleTitleBlur = () => {
     if (title !== note.title) {
-      flushSave(editor?.getHTML() ?? DEFAULT_DOC, title, tags);
+      flushSave(editor?.getHTML() ?? DEFAULT_DOC, title, tags, latestNoteIdRef.current);
     }
   };
 
@@ -195,13 +262,13 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
     const nextTags = [...tags, nextTag];
     setTags(nextTags);
     setTagInput('');
-    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags);
+    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags, latestNoteIdRef.current);
   };
 
   const handleRemoveTag = (tagToRemove) => {
     const nextTags = tags.filter((tag) => tag !== tagToRemove);
     setTags(nextTags);
-    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags);
+    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags, latestNoteIdRef.current);
   };
 
   const toolbarButtons = useMemo(
