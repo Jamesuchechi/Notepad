@@ -10,6 +10,8 @@ export default function useKeyboardShortcuts({
   onOpenSettings,
   onOpenShortcuts,
   onCloseModals,
+  onOpenAIChat,
+  onOpenVoiceNote,
 }) {
   useEffect(() => {
     const isMac = navigator.platform.toUpperCase().includes('MAC');
@@ -52,6 +54,18 @@ export default function useKeyboardShortcuts({
         return;
       }
 
+      if (mod && event.shiftKey && key === 'a') {
+        event.preventDefault();
+        onOpenAIChat?.();
+        return;
+      }
+
+      if (mod && event.shiftKey && key === 'v') {
+        event.preventDefault();
+        onOpenVoiceNote?.();
+        return;
+      }
+
       if (key === '?' || (event.shiftKey && event.key === '/')) {
         event.preventDefault();
         onOpenShortcuts?.();
@@ -81,5 +95,7 @@ export default function useKeyboardShortcuts({
     onOpenSettings,
     onOpenShortcuts,
     onCloseModals,
+    onOpenAIChat,
+    onOpenVoiceNote,
   ]);
 }

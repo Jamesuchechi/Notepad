@@ -29,10 +29,20 @@ import {
   ChevronUp,
   Plus,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
 import ExportMenu from '@/components/editor/ExportMenu';
 import MarkdownPreview from '@/components/editor/MarkdownPreview';
+
+// AI Extensions and Store
+import { Details, DetailsSummary, DetailsContent } from '@tiptap/extension-details';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { useAIStore } from '@/store/useAIStore';
+import { stream } from '@/utils/ai';
+import AIActionMenu from '@/components/editor/AIActionMenu';
+import JournalPrompt from '@/components/editor/JournalPrompt';
+import RelatedNotes from '@/components/editor/RelatedNotes';
 
 const lowlight = createLowlight();
 lowlight.register('javascript', javascript);
@@ -52,6 +62,14 @@ const td = new TurndownService({
 
 export default function Editor({ note, previewMode = false, focusMode = false, forceSaveSignal = 0, onToggleFocusMode }) {
   const updateNote = useNoteStore((s) => s.updateNote);
+  const aiEnabled = useSettingsStore((s) => s.aiEnabled);
+  const summarizeEnabled = useSettingsStore((s) => s.aiFeatures?.summarize);
+  const autoTagEnabled = useSettingsStore((s) => s.aiFeatures?.autoTag);
+  const isAIWorking = useAIStore((s) => s.isGenerating);
+  const queueLength = useAIStore((s) => s.queueLength);
+  const rateLimitMessage = useAIStore((s) => s.rateLimitMessage);
+
+  const [suggestedTags, setSuggestedTags] = useState([]);
 
   const [title, setTitle] = useState(note.title ?? '');
   const [tags, setTags] = useState(note.tags ?? []);
@@ -60,8 +78,10 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
   const [stats, setStats] = useState({ words: 0, chars: 0, readTime: 0 });
   const [showFocusToolbar, setShowFocusToolbar] = useState(false);
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
   const saveTimer = useRef(null);
   const revealTimer = useRef(null);
+  const summarizeAbortControllerRef = useRef(null);
   const lastSaveRef = useRef({ noteId: note.id, title: note.title ?? '', tags: note.tags ?? [], content: note.content || DEFAULT_DOC });
   const latestTitleRef = useRef(title);
   const latestTagsRef = useRef(tags);
@@ -151,6 +171,14 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
           class: 'code-block',
         },
       }),
+      Details.configure({
+        persist: true,
+        HTMLAttributes: {
+          class: 'details-block',
+        },
+      }),
+      DetailsSummary,
+      DetailsContent,
     ],
     content: note.content || DEFAULT_DOC,
     editorProps: {
@@ -219,6 +247,9 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
       if (revealTimer.current) {
         window.clearTimeout(revealTimer.current);
       }
+      if (summarizeAbortControllerRef.current) {
+        summarizeAbortControllerRef.current.abort();
+      }
     };
   }, [editor, flushSave, note.id, title]);
 
@@ -227,6 +258,85 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
       flushSave(editor.getHTML(), title, tags);
     }
   }, [forceSaveSignal, editor, flushSave, title, tags]);
+
+  const handleSummarize = async () => {
+    if (isSummarizing || !editor) return;
+
+    const text = editor.getText();
+    if (!text.trim()) return;
+
+    setIsSummarizing(true);
+
+    // Insert placeholder details block at pos 0
+    editor.commands.insertContentAt(0, {
+      type: 'details',
+      attrs: { open: true },
+      content: [
+        {
+          type: 'detailsSummary',
+          content: [{ type: 'text', text: '✨ AI Summary' }],
+        },
+        {
+          type: 'detailsContent',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Generating summary...' }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const prompt = `Summarize the following note content in a clear, concise bulleted format. Return only the summary text, without introductions or explanations:\n\n${text}`;
+
+    const controller = new AbortController();
+    summarizeAbortControllerRef.current = controller;
+
+    try {
+      let accumulatedText = '';
+      const messages = [{ role: 'user', content: prompt }];
+      const responseStream = stream(messages, { signal: controller.signal });
+
+      for await (const chunk of responseStream) {
+        if (controller.signal.aborted) {
+          break;
+        }
+        accumulatedText += chunk;
+
+        // Replace the details block at position 0
+        const node = editor.state.doc.nodeAt(0);
+        if (node && node.type.name === 'details') {
+          editor.commands.deleteRange({ from: 0, to: node.nodeSize });
+        }
+
+        editor.commands.insertContentAt(0, {
+          type: 'details',
+          attrs: { open: true },
+          content: [
+            {
+              type: 'detailsSummary',
+              content: [{ type: 'text', text: '✨ AI Summary' }],
+            },
+            {
+              type: 'detailsContent',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: accumulatedText }],
+                },
+              ],
+            },
+          ],
+        });
+      }
+    } catch (error) {
+      console.error('Summarize error:', error);
+    } finally {
+      setIsSummarizing(false);
+      summarizeAbortControllerRef.current = null;
+    }
+  };
 
   const handleTitleChange = (event) => {
     const nextTitle = event.target.value;
@@ -270,6 +380,72 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
     setTags(nextTags);
     scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags, latestNoteIdRef.current);
   };
+
+  const filteredSuggestedTags = useMemo(() => {
+    return suggestedTags.filter((tag) => !tags.includes(tag));
+  }, [suggestedTags, tags]);
+
+  const handleAddSuggestedTag = (tagToAdd) => {
+    if (tags.includes(tagToAdd)) return;
+    const nextTags = [...tags, tagToAdd];
+    setTags(nextTags);
+    setSuggestedTags((prev) => prev.filter((t) => t !== tagToAdd));
+    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags, latestNoteIdRef.current);
+  };
+
+  const handleAddAllSuggestedTags = () => {
+    const nextTags = [...tags];
+    filteredSuggestedTags.forEach((tag) => {
+      if (!nextTags.includes(tag)) {
+        nextTags.push(tag);
+      }
+    });
+    setTags(nextTags);
+    setSuggestedTags([]);
+    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags, latestNoteIdRef.current);
+  };
+
+  useEffect(() => {
+    if (!aiEnabled || !autoTagEnabled || !editor) {
+      setSuggestedTags([]);
+      return;
+    }
+
+    const plainText = editor.getText().trim();
+    if (plainText.length < 30) {
+      setSuggestedTags([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const prompt = `Analyze the following note content and suggest up to 5 relevant, concise tags (each 1-2 words, lowercase, no spaces or special characters other than hyphens). Return only the suggested tags as a comma-separated list, without any formatting or other text. If no specific tags are relevant, return an empty response.
+      
+Note Title: ${title}
+Note Content: ${plainText}
+
+Suggested tags:`;
+
+      try {
+        let responseText = '';
+        const responseStream = stream([{ role: 'user', content: prompt }]);
+        for await (const chunk of responseStream) {
+          responseText += chunk;
+        }
+
+        const cleanTags = responseText
+          .split(',')
+          .map((t) => t.trim().toLowerCase())
+          .filter((t) => t && t.length > 1)
+          .slice(0, 5);
+
+        setSuggestedTags(cleanTags);
+      } catch (err) {
+        console.error('Failed to suggest tags:', err);
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [editor, note.id, note.content, title, aiEnabled, autoTagEnabled]);
 
   const toolbarButtons = useMemo(
     () => [
@@ -432,7 +608,37 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
               <Plus size={14} />
             </button>
           </div>
+          {aiEnabled && autoTagEnabled && filteredSuggestedTags.length > 0 && (
+            <div className="note-tags-suggestions">
+              <span className="note-tags-suggestions__label">AI Suggestions:</span>
+              <div className="note-tags-suggestions__list">
+                {filteredSuggestedTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className="note-tags-suggestions__chip"
+                    onClick={() => handleAddSuggestedTag(tag)}
+                    title={`Add tag "${tag}"`}
+                  >
+                    + {tag}
+                  </button>
+                ))}
+                {filteredSuggestedTags.length > 1 && (
+                  <button
+                    type="button"
+                    className="note-tags-suggestions__add-all"
+                    onClick={handleAddAllSuggestedTags}
+                    title="Add all suggested tags"
+                  >
+                    Add all
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
+
+        <JournalPrompt note={note} editor={editor} />
 
         {/* ── Toolbar ───────────────────────────────────────────── */}
         <div className={`editor-toolbar${focusMode && !showFocusToolbar ? ' editor-toolbar--hidden' : ''}`} role="toolbar" aria-label="Formatting toolbar">
@@ -470,6 +676,17 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
             >
               <Maximize2 size={16} />
             </button>
+            {aiEnabled && summarizeEnabled && (
+              <button
+                type="button"
+                className={`editor-toolbar__button ${isSummarizing ? 'editor-toolbar__button--active' : ''}`}
+                onClick={handleSummarize}
+                disabled={!editor || isSummarizing}
+                title="Summarize note with AI"
+              >
+                <Sparkles size={16} />
+              </button>
+            )}
           </div>
 
           {/* Export menu lives in the toolbar (Phase 8) */}
@@ -484,7 +701,10 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
         {previewMode ? (
           <MarkdownPreview markdown={td.turndown(editor?.getHTML() ?? (note.content || DEFAULT_DOC))} />
         ) : editor ? (
-          <EditorContent editor={editor} />
+          <>
+            <EditorContent editor={editor} />
+            <AIActionMenu editor={editor} />
+          </>
         ) : (
           <div className="note-editor-loading">Loading editor…</div>
         )}
@@ -499,7 +719,21 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
           <span className="editor-footer__sep" aria-hidden="true">·</span>
           <span>{stats.readTime} min read</span>
         </div>
-        <div className="editor-footer__status">{status}</div>
+        <div className="editor-footer__status">
+          {aiEnabled && isAIWorking && (
+            <span className="ai-status-indicator" title="AI is active...">
+              <span className="ai-status-indicator__dot" />
+              <span>AI active</span>
+            </span>
+          )}
+          {aiEnabled && !isAIWorking && queueLength > 0 && (
+            <span className="ai-status-indicator ai-status-indicator--queued" title="AI request queued">
+              <span className="ai-status-indicator__dot" />
+              <span>AI queued</span>
+            </span>
+          )}
+          {rateLimitMessage ? <span className="editor-footer__rate-limit">{rateLimitMessage}</span> : status}
+        </div>
       </footer>
 
       <style>{`
@@ -957,6 +1191,146 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
             flex-wrap: wrap;
             gap: 6px;
           }
+        }
+
+        .details-block {
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 12px 16px;
+          margin-bottom: 20px;
+          background: var(--bg-subtle);
+        }
+
+        .details-block summary {
+          font-weight: 600;
+          color: var(--text-primary);
+          cursor: pointer;
+          outline: none;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .details-block div[data-type="details-content"] {
+          margin-top: 10px;
+          color: var(--text-secondary);
+          line-height: 1.6;
+        }
+
+        .ai-status-indicator {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          margin-right: 12px;
+          color: var(--brand);
+          font-weight: 500;
+        }
+
+        .ai-status-indicator--queued {
+          background: rgba(251, 191, 36, 0.1);
+          color: #b45309;
+          border-radius: 999px;
+          padding: 4px 8px;
+        }
+
+        .ai-status-indicator__dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          background: var(--brand);
+          animation: ai-pulse 1.5s infinite;
+        }
+
+        .ai-status-indicator--queued .ai-status-indicator__dot {
+          background: #d97706;
+        }
+
+        .editor-footer__rate-limit {
+          display: inline-flex;
+          margin-left: 10px;
+          color: #b45309;
+          font-size: 0.82rem;
+        }
+
+        @keyframes ai-pulse {
+          0% {
+            transform: scale(0.9);
+            opacity: 1;
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+          }
+          70% {
+            transform: scale(1);
+            opacity: 0.8;
+            box-shadow: 0 0 0 6px rgba(99, 102, 241, 0);
+          }
+          100% {
+            transform: scale(0.9);
+            opacity: 1;
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+          }
+        }
+
+        .note-tags-suggestions {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-top: 12px;
+          padding: 8px 12px;
+          background: rgba(99, 102, 241, 0.04);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+        }
+
+        .note-tags-suggestions__label {
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: var(--text-tertiary);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .note-tags-suggestions__list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          align-items: center;
+        }
+
+        .note-tags-suggestions__chip {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 10px;
+          background: var(--bg-base);
+          border: 1px dashed var(--border);
+          border-radius: 99px;
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+        }
+
+        .note-tags-suggestions__chip:hover {
+          background: rgba(99, 102, 241, 0.08);
+          border-color: var(--brand);
+          color: var(--brand);
+        }
+
+        .note-tags-suggestions__add-all {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 10px;
+          background: var(--brand);
+          border: none;
+          border-radius: 99px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #fff;
+          cursor: pointer;
+          transition: background var(--t-fast);
+        }
+
+        .note-tags-suggestions__add-all:hover {
+          background: var(--brand-hover);
         }
       `}</style>
     </div>

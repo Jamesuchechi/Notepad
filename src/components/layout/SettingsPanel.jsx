@@ -1,16 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useNoteStore } from '@/store/useNoteStore';
 import { exportAllData } from '@/utils/export';
+import { generateWeeklyDigest } from '@/utils/ai';
 
 export default function SettingsPanel({ open, onClose }) {
   const theme = useSettingsStore((state) => state.theme);
   const fontSize = useSettingsStore((state) => state.fontSize);
+  const aiEnabled = useSettingsStore((state) => state.aiEnabled);
+  const aiFeatures = useSettingsStore((state) => state.aiFeatures);
   const toggleTheme = useSettingsStore((state) => state.toggleTheme);
   const setFontSize = useSettingsStore((state) => state.setFontSize);
+  const setAiEnabled = useSettingsStore((state) => state.setAiEnabled);
+  const toggleAiFeature = useSettingsStore((state) => state.toggleAiFeature);
   const clearAllNotes = useNoteStore((state) => state.clearAllNotes);
+  const createNote = useNoteStore((state) => state.createNote);
   const notes = useNoteStore((state) => state.notes);
+  const [digestStatus, setDigestStatus] = useState('');
 
   useEffect(() => {
     if (!open) return undefined;
@@ -64,6 +71,71 @@ export default function SettingsPanel({ open, onClose }) {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="settings-panel__group">
+          <h3>AI features</h3>
+          <p>Enable AI and individual AI-powered workflows.</p>
+          <div className="settings-panel__toggles">
+            <label className="settings-panel__toggle">
+              <input
+                type="checkbox"
+                checked={aiEnabled}
+                onChange={(event) => setAiEnabled(event.target.checked)}
+              />
+              AI enabled
+            </label>
+            {Object.entries(aiFeatures).map(([feature, enabled]) => (
+              <label key={feature} className="settings-panel__toggle">
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  onChange={() => toggleAiFeature(feature)}
+                />
+                {feature.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="settings-panel__group">
+          <h3>Weekly digest</h3>
+          <p>Generate a new pinned note summarizing notes edited in the last 7 days.</p>
+          <div className="settings-panel__actions">
+            <button
+              type="button"
+              className="settings-panel__control"
+              onClick={async () => {
+                setDigestStatus('Generating weekly digest...');
+                const recentNotes = notes.filter((note) => {
+                  const updatedAt = new Date(note.updatedAt || note.createdAt);
+                  const oneWeekAgo = new Date();
+                  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+                  return updatedAt >= oneWeekAgo;
+                });
+                if (recentNotes.length === 0) {
+                  setDigestStatus('No notes edited in the last 7 days.');
+                  return;
+                }
+
+                try {
+                  const digest = await generateWeeklyDigest(recentNotes);
+                  createNote({
+                    title: `Weekly Digest — ${new Date().toLocaleDateString()}`,
+                    content: `<h1>Weekly Digest</h1><p>${digest.replace(/\n\n+/g, '</p><p>')}</p>`,
+                    pinned: true,
+                  });
+                  setDigestStatus('Weekly digest created and pinned.');
+                } catch (error) {
+                  console.error('Weekly digest generation failed:', error);
+                  setDigestStatus('Weekly digest generation failed.');
+                }
+              }}
+            >
+              Generate this week's digest
+            </button>
+          </div>
+          {digestStatus && <p className="settings-panel__status">{digestStatus}</p>}
         </div>
 
         <div className="settings-panel__group">
@@ -138,6 +210,33 @@ export default function SettingsPanel({ open, onClose }) {
 
         .settings-panel__group {
           margin-bottom: 18px;
+        }
+
+        .settings-panel__toggles {
+          display: grid;
+          gap: 10px;
+        }
+
+        .settings-panel__toggle {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+          border-radius: 14px;
+          border: 1px solid var(--border);
+          background: var(--bg-subtle);
+          color: var(--text-primary);
+          font-size: 0.92rem;
+        }
+
+        .settings-panel__toggle input {
+          accent-color: var(--brand);
+        }
+
+        .settings-panel__status {
+          margin-top: 10px;
+          color: var(--text-secondary);
+          font-size: 0.9rem;
         }
 
         .settings-panel__group h3 {

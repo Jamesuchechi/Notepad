@@ -18,6 +18,7 @@ export const useNoteStore = create(
           folderId: attrs.folderId ?? null,
           tags: attrs.tags ?? [],
           pinned: attrs.pinned ?? false,
+          templateId: attrs.templateId ?? null,
           createdAt: attrs.createdAt ?? new Date().toISOString(),
           updatedAt: attrs.updatedAt ?? new Date().toISOString(),
         };

@@ -61,6 +61,14 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
+### AI Configuration
+
+To enable the optional AI features (writing assistant, summarization, semantic search, AI chat), create a `.env` file in the root directory and add your OpenRouter API key:
+
+```bash
+VITE_OPENROUTER_API_KEY=your_openrouter_api_key_here
+```
+
 ### Build for production
 
 ```bash
@@ -117,6 +125,7 @@ brain/
 | `Cmd/Ctrl + E` | Toggle markdown preview |
 | `Cmd/Ctrl + Shift + F` | Toggle focus mode |
 | `Cmd/Ctrl + ,` | Open settings |
+| `Cmd/Ctrl + Shift + A` | Open AI Chat |
 
 ---
 

@@ -61,6 +61,20 @@ export default function KeyboardShortcutsModal({ open, onClose }) {
             <span>Close modals</span>
             <kbd>Esc</kbd>
           </div>
+
+          <div className="shortcuts-modal__section-title">AI features</div>
+          <div className="shortcut-row">
+            <span>Open AI Chat</span>
+            <kbd>Cmd/Ctrl + Shift + A</kbd>
+          </div>
+          <div className="shortcut-row">
+            <span>Open voice note</span>
+            <kbd>Cmd/Ctrl + Shift + V</kbd>
+          </div>
+          <div className="shortcut-row">
+            <span>AI features require API access and may queue if the service is busy</span>
+            <kbd>Info</kbd>
+          </div>
         </div>
       </div>
 
@@ -110,6 +124,16 @@ export default function KeyboardShortcutsModal({ open, onClose }) {
         .shortcuts-modal__list {
           display: grid;
           gap: 12px;
+        }
+
+        .shortcuts-modal__section-title {
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-tertiary);
+          margin-top: 8px;
+          margin-bottom: -4px;
+          font-weight: 600;
         }
 
         .shortcut-row {

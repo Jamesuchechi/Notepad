@@ -44,6 +44,7 @@ export default function TemplateModal({ open, onClose }) {
                                 createNote({
                                     title: template.title,
                                     content: template.content,
+                                    templateId: template.id,
                                 });
                                 onClose();
                             }}

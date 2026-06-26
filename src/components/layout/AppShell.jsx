@@ -5,6 +5,8 @@ import SearchModal from '../search/SearchModal';
 import SettingsPanel from './SettingsPanel';
 import KeyboardShortcutsModal from './KeyboardShortcutsModal';
 import TemplateModal from './TemplateModal';
+import AIChatModal from './AIChatModal';
+import VoiceNoteModal from './VoiceNoteModal';
 import useKeyboardShortcuts from '@/hooks/useKeyboardShortcuts';
 import { useNoteStore } from '@/store/useNoteStore';
 
@@ -14,6 +16,8 @@ export default function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [voiceNoteOpen, setVoiceNoteOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [forceSaveSignal, setForceSaveSignal] = useState(0);
@@ -30,6 +34,10 @@ export default function AppShell() {
   const closeShortcuts = () => setShortcutsOpen(false);
   const openTemplate = () => setTemplateOpen(true);
   const closeTemplate = () => setTemplateOpen(false);
+  const openAIChat = () => setChatOpen(true);
+  const closeAIChat = () => setChatOpen(false);
+  const openVoiceNote = () => setVoiceNoteOpen(true);
+  const closeVoiceNote = () => setVoiceNoteOpen(false);
 
   const toggleFocusMode = () => {
     setFocusMode((current) => !current);
@@ -54,6 +62,8 @@ export default function AppShell() {
     onForceSave: forceSave,
     onTogglePreview: togglePreviewMode,
     onToggleFocusMode: toggleFocusMode,
+    onOpenAIChat: openAIChat,
+    onOpenVoiceNote: openVoiceNote,
     onOpenSettings: openSettings,
     onOpenShortcuts: openShortcuts,
     onCloseModals: closeModals,
@@ -78,6 +88,8 @@ export default function AppShell() {
           onOpenSettings={openSettings}
           onOpenShortcuts={openShortcuts}
           onOpenTemplate={openTemplate}
+          onOpenAIChat={openAIChat}
+          onOpenVoiceNote={openVoiceNote}
         />
       </aside>
 
@@ -96,6 +108,8 @@ export default function AppShell() {
       <SearchModal open={searchOpen} onClose={closeSearch} />
       <SettingsPanel open={settingsOpen} onClose={closeSettings} />
       <TemplateModal open={templateOpen} onClose={closeTemplate} />
+      <AIChatModal open={chatOpen} onClose={closeAIChat} />
+      <VoiceNoteModal open={voiceNoteOpen} onClose={closeVoiceNote} />
       <KeyboardShortcutsModal open={shortcutsOpen} onClose={closeShortcuts} />
 
       {/* ── Scoped styles ─────────────────────────────────────── */}

@@ -198,7 +198,6 @@ Phased plan from project setup to a fully polished app. Work through each phase 
   - [x] Editor font size: small / medium / large
   - [x] "Clear all notes" with confirmation
   - [x] "Export all data" as zip
-
 ---
 
 ## Phase 14 — Polish & Code Blocks
@@ -218,77 +217,110 @@ Phased plan from project setup to a fully polished app. Work through each phase 
 ## Phase 15 — AI Layer
 
 ### Setup
-- [ ] Install Anthropic SDK: `npm install @anthropic-ai/sdk`
-- [ ] Create `src/utils/ai.js` — central wrapper around Anthropic API calls
-  - [ ] Streaming support via `stream()` helper
-  - [ ] Shared error handling and loading state management
-  - [ ] Request queue to prevent concurrent flood
-  - [ ] Graceful no-op fallback when API is unavailable
-- [ ] Add `VITE_ANTHROPIC_API_KEY` to `.env.local` and document in `README.md`
-- [ ] Add AI toggles to `useSettingsStore`: `aiEnabled`, per-feature flags
-- [ ] Add *"AI"* section to keyboard shortcuts modal (`Cmd+Shift+A` for Chat)
+
+- [x] Install Openai(openrouter) SDK: `npm install @openrouter-ai/sdk`
+- [x] Create `src/utils/ai.js` — central wrapper around Openai(openrouter) API calls
+  - [x] Streaming support via `stream()` helper
+  - [x] Shared error handling and loading state management
+  - [x] Request queue to prevent concurrent flood
+  - [x] Graceful no-op fallback when API is unavailable
+- [x] Add `VITE_OPENROUTER_API_KEY` to `.env` and document in `README.md`
+- [x] Add AI toggles to `useSettingsStore`: `aiEnabled`, per-feature flags
+- [x] Add _"AI"_ section to keyboard shortcuts modal (`Cmd+Shift+A` for Chat)
 
 ### Tier 1 — Core AI Features
 
-- [ ] Build `AIActionMenu` component
-  - [ ] Appears as a floating toolbar when the user selects text in the editor
-  - [ ] Actions: *Improve writing*, *Make shorter*, *Make longer*, *Fix grammar*, *Continue writing*, *Change tone*
-  - [ ] Streams AI response back into editor, replacing or appending to the selection
-  - [ ] Dismiss with `Escape` or clicking outside
-- [ ] Build `SummarizeButton` in editor toolbar
-  - [ ] Summarises full note content on click
-  - [ ] Inserts summary as a collapsible callout block at the top of the note
-  - [ ] Shows `AIStatusIndicator` while generating
-- [ ] Build `AISearch` — semantic search mode inside `SearchModal`
-  - [ ] Toggle between *Keyword* and *AI* search mode
-  - [ ] Sends query + all note titles/snippets to AI, returns ranked relevant notes
-  - [ ] Gracefully falls back to keyword search if API fails
+- [x] Build `AIActionMenu` component
+  - [x] Appears as a floating toolbar when the user selects text in the editor
+  - [x] Actions: _Improve writing_, _Make shorter_, _Make longer_, _Fix grammar_, _Continue writing_, _Change tone_
+  - [x] Streams AI response back into editor, replacing or appending to the selection
+  - [x] Dismiss with `Escape` or clicking outside
+- [x] Build `SummarizeButton` in editor toolbar
+  - [x] Summarises full note content on click
+  - [x] Inserts summary as a collapsible callout block at the top of the note
+  - [x] Shows `AIStatusIndicator` while generating
+- [x] Build `AISearch` — semantic search mode inside `SearchModal`
+  - [x] Toggle between _Keyword_ and _AI_ search mode
+  - [x] Sends query + all note titles/snippets to AI, returns ranked relevant notes
+  - [x] Gracefully falls back to keyword search if API fails
 
 ### Tier 2 — Smart Features
 
-- [ ] Build `JournalPrompt`
-  - [ ] Shown when opening a blank journal template
-  - [ ] AI generates a reflective question based on the current date
-  - [ ] Dismiss or insert the prompt into the note as a starting line
-- [ ] Build `AutoTagSuggestion`
-  - [ ] Triggers after note content settles (debounce ~2s after last edit)
-  - [ ] AI suggests up to 5 relevant tags
-  - [ ] Shows non-intrusive chip suggestions below tag input: *"+ productivity  + react  + ideas"*
-  - [ ] One click to apply any or all suggestions
-- [ ] Build `RelatedNotes` panel
-  - [ ] Shown as a collapsible section at the bottom of `EditorPane`
-  - [ ] AI compares current note to others in store, surfaces top 3 related notes
-  - [ ] Click a related note to open it
-  - [ ] *"Link this note"* button to insert an inline reference
+- [x] Build `JournalPrompt`
+  - [x] Shown when opening a blank journal template
+  - [x] AI generates a reflective question based on the current date
+  - [x] Dismiss or insert the prompt into the note as a starting line
+- [x] Build `AutoTagSuggestion`
+  - [x] Triggers after note content settles (debounce ~2s after last edit)
+  - [x] AI suggests up to 5 relevant tags
+  - [x] Shows non-intrusive chip suggestions below tag input: _"+ productivity + react + ideas"_
+  - [x] One click to apply any or all suggestions
+- [x] Build `RelatedNotes` panel
+  - [x] Shown as a collapsible section at the bottom of `EditorPane`
+  - [x] AI compares current note to others in store, surfaces top 3 related notes
+  - [x] Click a related note to open it
+  - [x] _"Link this note"_ button to insert an inline reference
 
 ### Tier 3 — Power Features
 
-- [ ] Build `ChatWithNotes` modal (`Cmd+Shift+A`)
-  - [ ] Full conversation UI — user asks questions, AI answers using the note library as context
-  - [ ] Sends all notes as context with each message (chunked if large)
-  - [ ] Cites which note(s) the answer came from, each citation clickable to open the note
-  - [ ] Conversation history preserved for the session
-- [ ] Build `VoiceToNote`
-  - [ ] Microphone button in sidebar or toolbar
-  - [ ] Records audio → transcribes via Web Speech API
-  - [ ] AI cleans up and formats the transcript, creates a new note automatically
-- [ ] Build `WeeklyDigest`
-  - [ ] Button in settings or sidebar footer: *"Generate this week's digest"*
-  - [ ] AI reads all notes edited in the last 7 days
-  - [ ] Produces a structured summary: themes, highlights, open threads
-  - [ ] Creates a new pinned note with the digest content
+- [x] Build `ChatWithNotes` modal (`Cmd+Shift+A`)
+  - [x] Full conversation UI — user asks questions, AI answers using the note library as context
+  - [x] Sends all notes as context with each message (chunked if large)
+  - [x] Cites which note(s) the answer came from, each citation clickable to open the note
+  - [x] Conversation history preserved for the session
+- [x] Build `VoiceToNote`
+  - [x] Microphone button in sidebar or toolbar
+  - [x] Records audio → transcribes via Web Speech API
+  - [x] AI cleans up and formats the transcript, creates a new note automatically
+- [x] Build `WeeklyDigest`
+  - [x] Button in settings or sidebar footer: _"Generate this week's digest"_
+  - [x] AI reads all notes edited in the last 7 days
+  - [x] Produces a structured summary: themes, highlights, open threads
+  - [x] Creates a new pinned note with the digest content
 
 ### Cross-cutting AI Concerns
 
-- [ ] Build `AIStatusIndicator` — subtle pulsing dot in footer shown whenever AI is working
-- [ ] Add per-feature AI toggles in `SettingsPanel` (disable individual features)
-- [ ] Ensure every AI feature has a graceful no-op fallback if the API is unavailable
-- [ ] Rate limit awareness — queue concurrent AI requests, show a friendly message if overwhelmed
-- [ ] Add AI usage section to keyboard shortcuts reference modal
+- [x] Build `AIStatusIndicator` — subtle pulsing dot in footer shown whenever AI is working
+- [x] Add per-feature AI toggles in `SettingsPanel` (disable individual features)
+- [x] Ensure every AI feature has a graceful no-op fallback if the API is unavailable
+- [x] Rate limit awareness — queue concurrent AI requests, show a friendly message if overwhelmed
+- [x] Add AI usage section to keyboard shortcuts reference modal
 
 ---
 
-## Phase 16 — Final QA & Deploy
+## Phase 16 — Product polish, reliability, and AI enhancements
+
+- [ ] Add archive / trash with undo support instead of hard delete
+- [ ] Add note history / versioning and restore previous note versions
+- [ ] Add multi-select bulk actions for notes: delete, move, tag, export
+- [ ] Improve folder/tag filtering with UI controls in the sidebar
+- [ ] Add note linking / backlinks support (wiki-style `[[note]]` links)
+- [ ] Add date-based note groups in the sidebar: Today, This week, Older
+- [ ] Move local persistence from `localStorage` to IndexedDB or `localForage` for larger note sets
+- [ ] Add explicit backup / restore workflow for app state and settings
+- [ ] Add JSON backup export / restore flow
+- [ ] Add optional encrypted local vault or password-lock mode for privacy
+- [ ] Improve AI availability UX when API key is missing or the service is unavailable
+- [ ] Surface AI status clearly in the UI: busy, queued, failed, unavailable
+- [ ] Add fallback AI-free workflows for search and note helpers
+- [ ] Add more AI actions: note summarization, action item extraction, rewrite/expand/shorten note text
+- [ ] Let users accept or reject AI-suggested tags, prompts, and related note recommendations
+- [ ] Add PDF export support
+- [ ] Support importing `.html` or editor JSON content in addition to `.md` / `.txt`
+- [ ] Add copy-to-clipboard and share note text flow
+- [ ] Add a command palette / quick add menu for fast actions
+- [ ] Add daily note / calendar view support for journal workflows
+- [ ] Add inline todo checkboxes or task metadata support
+- [ ] Add custom editor themes and additional font options beyond size
+- [ ] Improve mobile responsiveness for sidebar, modals, and keyboard shortcut help
+- [ ] Add visible onboarding / first-run tour for templates and AI features
+- [ ] Add a “last saved” / status indicator for saving state
+- [ ] Add settings for autosave frequency, note sort order, and default new note folder
+- [ ] Improve export/import interoperability with markdown-first workflows
+- [ ] Add a simpler mobile UI or optimized mobile layout
+- [ ] Consider a stronger product positioning as a “local-first personal knowledge workspace” rather than only a notepad---
+
+## Phase 17 — Final QA & Deploy
 
 - [ ] Test full flow end to end: create, edit, organise, search, export, import
 - [ ] Test all AI features: action menu, summarise, search, journal prompt, auto-tag, related notes, chat, voice, digest

@@ -1,11 +1,11 @@
-import { PenLine, Settings, Sun, Moon, Monitor, X, HelpCircle } from 'lucide-react';
+import { PenLine, Settings, Sun, Moon, Monitor, X, HelpCircle, MessageCircle, Mic } from 'lucide-react';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useNoteStore } from '@/store/useNoteStore';
 import FolderList from '@/components/folders/FolderList';
 import NoteList from '@/components/notes/NoteList';
 import ImportButton from '@/components/notes/ImportButton';
 
-export default function Sidebar({ onClose, onOpenSearch, onOpenSettings, onOpenShortcuts, onOpenTemplate }) {
+export default function Sidebar({ onClose, onOpenSearch, onOpenSettings, onOpenShortcuts, onOpenTemplate, onOpenAIChat, onOpenVoiceNote }) {
   const theme       = useSettingsStore((s) => s.theme);
   const toggleTheme = useSettingsStore((s) => s.toggleTheme);
   const createNote  = useNoteStore((s) => s.createNote);
@@ -77,6 +77,22 @@ export default function Sidebar({ onClose, onOpenSearch, onOpenSettings, onOpenS
           onClick={onOpenShortcuts}
         >
           <HelpCircle size={16} />
+        </button>
+        <button
+          className="icon-btn"
+          aria-label="Open AI chat"
+          title="Open AI chat"
+          onClick={onOpenAIChat}
+        >
+          <MessageCircle size={16} />
+        </button>
+        <button
+          className="icon-btn"
+          aria-label="Create voice note"
+          title="Create voice note"
+          onClick={onOpenVoiceNote}
+        >
+          <Mic size={16} />
         </button>
         <button
           className="icon-btn"
