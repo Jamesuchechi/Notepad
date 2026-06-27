@@ -21,6 +21,8 @@ export const useSettingsStore = create(
         voice: true,
         weeklyDigest: true,
       },
+      vaultPasswordHash: null,
+      vaultLocked: false,
 
       // ── Actions ──────────────────────────────────────────────
       toggleTheme: () => {
@@ -39,6 +41,43 @@ export const useSettingsStore = create(
             [feature]: !state.aiFeatures[feature],
           },
         })),
+
+      setVaultPassword: async (password) => {
+        if (!password) {
+          set({ vaultPasswordHash: null, vaultLocked: false });
+          return;
+        }
+        const msgBuffer = new TextEncoder().encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+        set({ vaultPasswordHash: hashHex, vaultLocked: false });
+      },
+
+      checkVaultPassword: async (password) => {
+        const hash = get().vaultPasswordHash;
+        if (!hash) return true;
+        const msgBuffer = new TextEncoder().encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+        return hashHex === hash;
+      },
+
+      lockVault: () => {
+        if (get().vaultPasswordHash) {
+          set({ vaultLocked: true });
+        }
+      },
+
+      unlockVault: async (password) => {
+        const correct = await get().checkVaultPassword(password);
+        if (correct) {
+          set({ vaultLocked: false });
+          return true;
+        }
+        return false;
+      },
     }),
     {
       name: 'brain_settings',

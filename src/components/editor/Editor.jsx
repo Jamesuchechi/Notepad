@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
+import { Mark, mergeAttributes, markInputRule } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { createLowlight } from 'lowlight';
@@ -30,10 +31,13 @@ import {
   Plus,
   X,
   Sparkles,
+  Link2,
 } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
 import ExportMenu from '@/components/editor/ExportMenu';
+import HistoryMenu from '@/components/editor/HistoryMenu';
 import MarkdownPreview from '@/components/editor/MarkdownPreview';
+import { useToastStore } from '@/store/useToastStore';
 
 // AI Extensions and Store
 import { Details, DetailsSummary, DetailsContent } from '@tiptap/extension-details';
@@ -52,6 +56,62 @@ lowlight.register('html', xml);
 lowlight.register('xml', xml);
 lowlight.register('markdown', markdown);
 
+const WikiLink = Mark.create({
+  name: 'wikiLink',
+
+  addAttributes() {
+    return {
+      noteId: {
+        default: null,
+      },
+      noteTitle: {
+        default: null,
+      },
+      href: {
+        default: null,
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'a[data-wiki-link]',
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'a',
+      mergeAttributes(HTMLAttributes, {
+        'data-wiki-link': '',
+        class: 'wiki-link',
+      }),
+      0,
+    ];
+  },
+
+  addInputRules() {
+    return [
+      markInputRule({
+        find: /\[\[([^\]]+)\]\]$/,
+        type: this.type,
+        getAttributes: (match) => {
+          const noteTitle = match[1];
+          const notes = useNoteStore.getState().notes;
+          const found = notes.find((n) => n.title?.toLowerCase() === noteTitle.toLowerCase());
+          return {
+            noteTitle,
+            noteId: found ? found.id : 'new',
+            href: found ? `note://${found.id}` : `note-new://${encodeURIComponent(noteTitle)}`,
+          };
+        },
+      }),
+    ];
+  },
+});
+
 const DEFAULT_DOC = '<p></p>';
 const DEBOUNCE_DELAY = 500;
 const td = new TurndownService({
@@ -62,6 +122,7 @@ const td = new TurndownService({
 
 export default function Editor({ note, previewMode = false, focusMode = false, forceSaveSignal = 0, onToggleFocusMode }) {
   const updateNote = useNoteStore((s) => s.updateNote);
+  const notes = useNoteStore((s) => s.notes);
   const aiEnabled = useSettingsStore((s) => s.aiEnabled);
   const summarizeEnabled = useSettingsStore((s) => s.aiFeatures?.summarize);
   const autoTagEnabled = useSettingsStore((s) => s.aiFeatures?.autoTag);
@@ -79,6 +140,18 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
   const [showFocusToolbar, setShowFocusToolbar] = useState(false);
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
+
+  const backlinks = useMemo(() => {
+    return notes.filter((n) => {
+      if (n.id === note.id || n.trashed) return false;
+      const content = n.content || '';
+      return (
+        content.includes(`note://${note.id}`) ||
+        content.toLowerCase().includes(`[[${note.title?.toLowerCase()}]]`) ||
+        content.includes(`note-new://${encodeURIComponent(note.title || '')}`)
+      );
+    });
+  }, [notes, note.id, note.title]);
   const saveTimer = useRef(null);
   const revealTimer = useRef(null);
   const summarizeAbortControllerRef = useRef(null);
@@ -179,6 +252,7 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
       }),
       DetailsSummary,
       DetailsContent,
+      WikiLink,
     ],
     content: note.content || DEFAULT_DOC,
     editorProps: {
@@ -186,6 +260,30 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
         class: 'tiptap-editor',
         spellCheck: 'true',
         'data-placeholder': 'Start writing your note…',
+      },
+      handleClick(view, pos, event) {
+        const target = event.target;
+        const link = target.closest('.wiki-link');
+        if (link) {
+          const href = link.getAttribute('href');
+          if (href) {
+            event.preventDefault();
+            if (href.startsWith('note://')) {
+              const noteId = href.replace('note://', '');
+              useNoteStore.getState().setActiveNote(noteId);
+            } else if (href.startsWith('note-new://')) {
+              const noteTitle = decodeURIComponent(href.replace('note-new://', ''));
+              const newNoteId = useNoteStore.getState().createNote({
+                title: noteTitle,
+                content: `<h1>${noteTitle}</h1><p>Start writing here...</p>`,
+              });
+              useNoteStore.getState().setActiveNote(newNoteId);
+              useToastStore.getState().showToast(`Created new note "${noteTitle}"`);
+            }
+            return true;
+          }
+        }
+        return false;
       },
     },
     onCreate: ({ editor }) => {
@@ -202,21 +300,39 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
   });
 
   useEffect(() => {
-    setTitle(note.title ?? '');
-    setTags(note.tags ?? []);
     const previousNoteId = latestNoteIdRef.current;
-    if (!editor) return;
 
     if (note.id !== previousNoteId) {
+      setTitle(note.title ?? '');
+      setTags(note.tags ?? []);
       latestNoteIdRef.current = note.id;
-      isSyncingRef.current = true;
-      editor.commands.setContent(note.content || DEFAULT_DOC, false);
-    } else {
-      const currentContent = editor.getHTML();
-      if (note.content && note.content !== currentContent) {
+      if (editor) {
         isSyncingRef.current = true;
         editor.commands.setContent(note.content || DEFAULT_DOC, false);
       }
+    } else {
+      if (editor) {
+        const currentContent = editor.getHTML();
+        if (note.content && note.content !== currentContent) {
+          isSyncingRef.current = true;
+          editor.commands.setContent(note.content || DEFAULT_DOC, false);
+        }
+      }
+
+      if (note.title !== title && note.title !== lastSaveRef.current.title) {
+        setTitle(note.title ?? '');
+      }
+
+      const tagsStr = JSON.stringify(tags);
+      const noteTagsStr = JSON.stringify(note.tags ?? []);
+      const lastSavedTagsStr = JSON.stringify(lastSaveRef.current.tags ?? []);
+      if (noteTagsStr !== tagsStr && noteTagsStr !== lastSavedTagsStr) {
+        setTags(note.tags ?? []);
+      }
+    }
+
+    if (editor) {
+      editor.setEditable(!note.trashed);
     }
 
     lastSaveRef.current = {
@@ -225,7 +341,10 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
       tags: note.tags ?? [],
       content: note.content || DEFAULT_DOC,
     };
-    updateEditorStats(editor);
+    
+    if (editor) {
+      updateEditorStats(editor);
+    }
   }, [note.id, note.title, note.content, note.tags, editor, updateEditorStats]);
 
   useEffect(() => {
@@ -546,6 +665,7 @@ Suggested tags:`;
           onChange={handleTitleChange}
           onBlur={handleTitleBlur}
           aria-label="Note title"
+          disabled={note.trashed}
         />
         <button
           type="button"
@@ -581,11 +701,12 @@ Suggested tags:`;
                 key={tag}
                 type="button"
                 className="note-tag"
-                onClick={() => handleRemoveTag(tag)}
-                title={`Remove ${tag}`}
+                onClick={() => !note.trashed && handleRemoveTag(tag)}
+                disabled={note.trashed}
+                title={note.trashed ? undefined : `Remove ${tag}`}
               >
                 <span>{tag}</span>
-                <X size={12} />
+                {!note.trashed && <X size={12} />}
               </button>
             ))}
           </div>
@@ -593,7 +714,7 @@ Suggested tags:`;
             <input
               className="note-tag-input"
               type="text"
-              placeholder="Add tag and press Enter"
+              placeholder={note.trashed ? "Note is in Trash" : "Add tag and press Enter"}
               value={tagInput}
               onChange={(event) => setTagInput(event.target.value)}
               onKeyDown={(event) => {
@@ -603,12 +724,42 @@ Suggested tags:`;
                 }
               }}
               aria-label="Add tag"
+              disabled={note.trashed}
             />
-            <button type="button" className="note-tag-add-btn" onClick={handleAddTag} aria-label="Add tag">
+            <button
+              type="button"
+              className="note-tag-add-btn"
+              onClick={handleAddTag}
+              aria-label="Add tag"
+              disabled={note.trashed}
+            >
               <Plus size={14} />
             </button>
           </div>
-          {aiEnabled && autoTagEnabled && filteredSuggestedTags.length > 0 && (
+
+        {/* ── Backlinks ─────────────────────────────────────────── */}
+        <div className="note-backlinks-section">
+          <div className="note-backlinks-title">
+            <Link2 size={13} />
+            <span>Backlinks ({backlinks.length})</span>
+          </div>
+          {backlinks.length === 0 ? (
+            <div className="note-backlinks-empty">No notes link to this one yet.</div>
+          ) : (
+            <div className="note-backlinks-list">
+              {backlinks.map((bl) => (
+                <button
+                  key={bl.id}
+                  type="button"
+                  className="note-backlink-item"
+                  onClick={() => useNoteStore.getState().setActiveNote(bl.id)}
+                >
+                  {bl.title || 'Untitled'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>  {aiEnabled && autoTagEnabled && filteredSuggestedTags.length > 0 && (
             <div className="note-tags-suggestions">
               <span className="note-tags-suggestions__label">AI Suggestions:</span>
               <div className="note-tags-suggestions__list">
@@ -689,14 +840,47 @@ Suggested tags:`;
             )}
           </div>
 
-          {/* Export menu lives in the toolbar (Phase 8) */}
-          <div className="editor-toolbar__export">
+          {/* Export and History menus live in the toolbar */}
+          <div className="editor-toolbar__export" style={{ display: 'flex', gap: '8px' }}>
+            <HistoryMenu note={note} editor={editor} />
             <ExportMenu note={{ ...note, title, content: editor?.getHTML() ?? note.content }} />
           </div>
         </div>
       </div>
 
       {/* ── Editor content ────────────────────────────────────── */}
+      {note.trashed && (
+        <div className="editor-trash-banner">
+          <div className="editor-trash-banner__text">
+            This note is in the Trash. You cannot edit it.
+          </div>
+          <div className="editor-trash-banner__actions">
+            <button
+              type="button"
+              className="editor-trash-banner__btn editor-trash-banner__btn--restore"
+              onClick={() => {
+                useNoteStore.getState().restoreNote(note.id);
+                useToastStore.getState().showToast(`Restored "${note.title}"`);
+              }}
+            >
+              Restore Note
+            </button>
+            <button
+              type="button"
+              className="editor-trash-banner__btn editor-trash-banner__btn--delete"
+              onClick={() => {
+                if (window.confirm(`Permanently delete "${note.title}"? This cannot be undone.`)) {
+                  useNoteStore.getState().deleteNotePermanently(note.id);
+                  useToastStore.getState().showToast(`Permanently deleted "${note.title}"`);
+                }
+              }}
+            >
+              Delete Permanently
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="note-editor-content">
         {previewMode ? (
           <MarkdownPreview markdown={td.turndown(editor?.getHTML() ?? (note.content || DEFAULT_DOC))} />
@@ -743,6 +927,58 @@ Suggested tags:`;
           gap: 8px;
           padding: 6px 48px 0;
           flex-shrink: 0;
+        }
+
+        .editor-trash-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 24px;
+          background: rgba(245, 158, 11, 0.08);
+          border-bottom: 1px solid var(--border);
+          color: #f59e0b;
+          font-size: 0.8125rem;
+          gap: 16px;
+          animation: fade-in 0.15s ease;
+        }
+
+        .editor-trash-banner__text {
+          font-weight: 500;
+        }
+
+        .editor-trash-banner__actions {
+          display: flex;
+          gap: 8px;
+        }
+
+        .editor-trash-banner__btn {
+          border: none;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          transition: background 0.15s ease, filter 0.15s ease;
+        }
+
+        .editor-trash-banner__btn--restore {
+          background: var(--brand, #6366f1);
+          color: #fff;
+        }
+
+        .editor-trash-banner__btn--restore:hover {
+          filter: brightness(1.1);
+        }
+
+        .editor-trash-banner__btn--delete {
+          background: rgba(239, 68, 68, 0.1);
+          color: var(--danger, #ef4444);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .editor-trash-banner__btn--delete:hover {
+          background: rgba(239, 68, 68, 0.2);
         }
 
         .note-meta-item {
@@ -1331,6 +1567,64 @@ Suggested tags:`;
 
         .note-tags-suggestions__add-all:hover {
           background: var(--brand-hover);
+        }
+
+        .note-backlinks-section {
+          padding: 14px 48px;
+          border-top: 1px solid var(--border);
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .note-backlinks-title {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+        }
+
+        .note-backlinks-empty {
+          font-size: 0.75rem;
+          color: var(--text-tertiary);
+        }
+
+        .note-backlinks-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .note-backlink-item {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 10px;
+          background: var(--bg-subtle);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          font-size: 0.75rem;
+          color: var(--brand);
+          cursor: pointer;
+          font-family: inherit;
+          transition: background var(--t-fast);
+        }
+
+        .note-backlink-item:hover {
+          background: var(--bg-hover);
+        }
+
+        .wiki-link {
+          color: var(--brand);
+          text-decoration: underline;
+          cursor: pointer;
+          font-weight: 500;
+        }
+
+        .wiki-link[href^="note-new://"] {
+          color: var(--text-tertiary);
+          text-decoration-style: dashed;
         }
       `}</style>
     </div>

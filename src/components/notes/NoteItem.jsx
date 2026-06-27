@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Pin, MoreHorizontal, Trash2, PinOff, FolderPlus, X } from 'lucide-react';
+import { Pin, MoreHorizontal, Trash2, PinOff, FolderPlus, X, Unlock } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
 import { useFolderStore } from '@/store/useFolderStore';
+import { useToastStore } from '@/store/useToastStore';
 
-
-export default function NoteItem({ note, isActive, onSelect }) {
+export default function NoteItem({ note, isActive, onSelect, isMultiSelect, isSelected, onToggleSelect }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef  = useRef(null);
   const deleteNote = useNoteStore((s) => s.deleteNote);
@@ -34,29 +34,77 @@ export default function NoteItem({ note, isActive, onSelect }) {
     e.stopPropagation();
     pinNote(note.id);
     setMenuOpen(false);
+    useToastStore.getState().showToast(
+      note.pinned ? `Unpinned "${note.title}"` : `Pinned "${note.title}" to top`
+    );
   };
 
   const handleDelete = (e) => {
     e.stopPropagation();
     deleteNote(note.id);
     setMenuOpen(false);
+    useToastStore.getState().showToast(`Moved "${note.title}" to Trash.`, {
+      actionLabel: 'Undo',
+      onAction: () => {
+        useNoteStore.getState().restoreNote(note.id);
+      },
+    });
+  };
+
+  const handleRestore = (e) => {
+    e.stopPropagation();
+    useNoteStore.getState().restoreNote(note.id);
+    setMenuOpen(false);
+    useToastStore.getState().showToast(`Restored "${note.title}"`);
+  };
+
+  const handleDeletePermanently = (e) => {
+    e.stopPropagation();
+    if (window.confirm(`Permanently delete "${note.title}"? This cannot be undone.`)) {
+      useNoteStore.getState().deleteNotePermanently(note.id);
+      setMenuOpen(false);
+      useToastStore.getState().showToast(`Permanently deleted "${note.title}"`);
+    }
   };
 
   const handleMoveToFolder = (e, folderId) => {
     e.stopPropagation();
+    const targetFolder = folders.find((f) => f.id === folderId);
     updateNote(note.id, { folderId });
     setMenuOpen(false);
+    useToastStore.getState().showToast(
+      folderId ? `Moved "${note.title}" to folder "${targetFolder?.name}"` : `Removed "${note.title}" from folder`
+    );
   };
 
   return (
     <li
-      className={`note-item ${isActive ? 'note-item--active' : ''}`}
+      className={`note-item ${isActive ? 'note-item--active' : ''} ${isSelected ? 'note-item--selected' : ''}`}
       role="option"
       aria-selected={isActive}
-      onClick={onSelect}
+      onClick={(e) => {
+        if (isMultiSelect) {
+          e.stopPropagation();
+          onToggleSelect();
+        } else {
+          onSelect();
+        }
+      }}
     >
+      {isMultiSelect && (
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => {
+            e.stopPropagation();
+            onToggleSelect();
+          }}
+          className="note-item__checkbox"
+        />
+      )}
+
       {/* Left: folder colour dot (Phase 6 — hidden until folderId is set) */}
-      {note.folderId && (
+      {!isMultiSelect && note.folderId && !note.trashed && (
         <span
           className="note-item__folder-dot"
           aria-hidden="true"
@@ -70,7 +118,7 @@ export default function NoteItem({ note, isActive, onSelect }) {
           {note.title?.trim() || 'Untitled'}
         </span>
         <span className="note-item__meta">
-          {note.pinned && (
+          {note.pinned && !note.trashed && (
             <Pin size={10} className="note-item__pin-icon" aria-label="Pinned" />
           )}
           <time className="note-item__time" dateTime={note.updatedAt}>
@@ -80,67 +128,95 @@ export default function NoteItem({ note, isActive, onSelect }) {
       </div>
 
       {/* Right: ⋯ menu trigger */}
-      <div className="note-item__actions" ref={menuRef}>
-        <button
-          className="icon-btn note-item__menu-btn"
-          aria-label="Note options"
-          title="Note options"
-          onClick={handleMenuToggle}
-        >
-          <MoreHorizontal size={14} />
-        </button>
+      {!isMultiSelect && (
+        <div className="note-item__actions" ref={menuRef}>
+          <button
+            className="icon-btn note-item__menu-btn"
+            aria-label="Note options"
+            title="Note options"
+            onClick={handleMenuToggle}
+          >
+            <MoreHorizontal size={14} />
+          </button>
 
-        {menuOpen && (
-          <ul className="note-item__menu" role="menu">
-            <li role="none">
-              <button
-                className="note-item__menu-action"
-                role="menuitem"
-                onClick={handlePin}
-              >
-                {note.pinned ? (
-                  <><PinOff size={13} /> Unpin</>
-                ) : (
-                  <><Pin size={13} /> Pin to top</>
-                )}
-              </button>
-            </li>
-            <li role="none">
-              <div className="note-item__menu-section">Move to folder</div>
-            </li>
-            <li role="none">
-              <button
-                className="note-item__menu-action"
-                role="menuitem"
-                onClick={(e) => handleMoveToFolder(e, null)}
-              >
-                <X size={13} /> No folder
-              </button>
-            </li>
-            {folders.map((folderItem) => (
-              <li key={folderItem.id} role="none">
-                <button
-                  className="note-item__menu-action"
-                  role="menuitem"
-                  onClick={(e) => handleMoveToFolder(e, folderItem.id)}
-                >
-                  <FolderPlus size={13} /> {folderItem.name}
-                </button>
-              </li>
-            ))}
-            <li role="none" className="note-item__menu-divider" aria-hidden="true" />
-            <li role="none">
-              <button
-                className="note-item__menu-action note-item__menu-action--danger"
-                role="menuitem"
-                onClick={handleDelete}
-              >
-                <Trash2 size={13} /> Delete
-              </button>
-            </li>
-          </ul>
-        )}
-      </div>
+          {menuOpen && (
+            <ul className="note-item__menu" role="menu">
+              {note.trashed ? (
+                <>
+                  <li role="none">
+                    <button
+                      className="note-item__menu-action"
+                      role="menuitem"
+                      onClick={handleRestore}
+                    >
+                      <Unlock size={13} /> Restore note
+                    </button>
+                  </li>
+                  <li role="none" className="note-item__menu-divider" aria-hidden="true" />
+                  <li role="none">
+                    <button
+                      className="note-item__menu-action note-item__menu-action--danger"
+                      role="menuitem"
+                      onClick={handleDeletePermanently}
+                    >
+                      <Trash2 size={13} /> Delete permanently
+                    </button>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li role="none">
+                    <button
+                      className="note-item__menu-action"
+                      role="menuitem"
+                      onClick={handlePin}
+                    >
+                      {note.pinned ? (
+                        <><PinOff size={13} /> Unpin</>
+                      ) : (
+                        <><Pin size={13} /> Pin to top</>
+                      )}
+                    </button>
+                  </li>
+                  <li role="none">
+                    <div className="note-item__menu-section">Move to folder</div>
+                  </li>
+                  <li role="none">
+                    <button
+                      className="note-item__menu-action"
+                      role="menuitem"
+                      onClick={(e) => handleMoveToFolder(e, null)}
+                    >
+                      <X size={13} /> No folder
+                    </button>
+                  </li>
+                  {folders.map((folderItem) => (
+                    <li key={folderItem.id} role="none">
+                      <button
+                        className="note-item__menu-action"
+                        role="menuitem"
+                        onClick={(e) => handleMoveToFolder(e, folderItem.id)}
+                      >
+                        <FolderPlus size={13} /> {folderItem.name}
+                      </button>
+                    </li>
+                  ))}
+                  <li role="none" className="note-item__menu-divider" aria-hidden="true" />
+                  <li role="none">
+                    <button
+                      className="note-item__menu-action note-item__menu-action--danger"
+                      role="menuitem"
+                      onClick={handleDelete}
+                    >
+                      <Trash2 size={13} /> Delete
+                    </button>
+                  </li>
+                </>
+              )}
+            </ul>
+          )}
+        </div>
+      )}
 
       <style>{`
         .note-item {
@@ -161,6 +237,18 @@ export default function NoteItem({ note, isActive, onSelect }) {
         }
         .note-item--active { background-color: var(--bg-active); }
         .note-item--active .note-item__title { color: var(--brand); }
+        
+        .note-item--selected {
+          background-color: var(--bg-muted);
+        }
+
+        .note-item__checkbox {
+          accent-color: var(--brand);
+          cursor: pointer;
+          width: 14px;
+          height: 14px;
+          flex-shrink: 0;
+        }
 
         /* Folder colour dot */
         .note-item__folder-dot {

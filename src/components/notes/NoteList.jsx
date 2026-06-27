@@ -3,6 +3,7 @@ import { ArrowUpDown } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
 import { useFolderStore } from '@/store/useFolderStore';
 import NoteItem from './NoteItem';
+import BulkActionBar from './BulkActionBar';
 
 const SORT_OPTIONS = [
   { value: 'updatedAt', label: 'Last edited' },
@@ -19,8 +20,15 @@ export default function NoteList() {
 
   const [sortBy, setSortBy] = useState('updatedAt');
   const [sortOpen, setSortOpen] = useState(false);
+  const [isMultiSelect, setIsMultiSelect] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const filtered = notes.filter((note) => {
+    if (activeFolderId === 'trash') {
+      return note.trashed;
+    }
+    if (note.trashed) return false;
+
     if (tagFilter && !note.tags?.includes(tagFilter)) return false;
     if (activeFolderId === 'pinned') return note.pinned;
     if (activeFolderId === 'all') return true;
@@ -28,13 +36,36 @@ export default function NoteList() {
   });
 
   const sorted = [...filtered].sort((a, b) => {
-    // Pinned always first
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    if (activeFolderId !== 'trash' && a.pinned !== b.pinned) return a.pinned ? -1 : 1;
 
     if (sortBy === 'title') {
       return (a.title || 'Untitled').localeCompare(b.title || 'Untitled');
     }
     return new Date(b[sortBy]) - new Date(a[sortBy]);
+  });
+
+  const getGroup = (dateStr) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const noteDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffTime = today - noteDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return 'Today';
+    if (diffDays <= 7) return 'This Week';
+    return 'Older';
+  };
+
+  const groups = {
+    'Today': [],
+    'This Week': [],
+    'Older': []
+  };
+
+  sorted.forEach((note) => {
+    const groupName = getGroup(note.updatedAt || note.createdAt);
+    groups[groupName].push(note);
   });
 
   const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? 'Sort';
@@ -63,9 +94,6 @@ export default function NoteList() {
           .note-list-empty__icon {
             font-size: 2.4rem;
           }
-          .note-list-empty__icon {
-            font-size: 2.4rem;
-          }
 
           .note-list-empty__hint {
             font-size: 0.8125rem;
@@ -90,8 +118,20 @@ export default function NoteList() {
 
   return (
     <>
-      {/* Sort control */}
-      <div className="note-list-sort">
+      {/* Sort / Select control */}
+      <div className="note-list-sort" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button
+          type="button"
+          className={`note-list-sort__btn ${isMultiSelect ? 'note-list-sort__btn--active' : ''}`}
+          onClick={() => {
+            setIsMultiSelect((v) => !v);
+            setSelectedIds([]);
+          }}
+          title="Select multiple notes"
+        >
+          <span>{isMultiSelect ? 'Cancel' : 'Select'}</span>
+        </button>
+
         <div className="note-list-sort__wrap">
           <button
             type="button"
@@ -122,18 +162,61 @@ export default function NoteList() {
         </div>
       </div>
 
-      <ul className="note-list" role="listbox" aria-label="Notes">
-        {sorted.map((note) => (
-          <NoteItem
-            key={note.id}
-            note={note}
-            isActive={note.id === activeNoteId}
-            onSelect={() => setActiveNote(note.id)}
-          />
-        ))}
-      </ul>
+      <div className="note-list-groups">
+        {Object.entries(groups).map(([groupName, groupNotes]) => {
+          if (groupNotes.length === 0) return null;
+          return (
+            <div key={groupName} className="note-list-group-section">
+              <div className="note-list-group-header">{groupName}</div>
+              <ul className="note-list" role="listbox" aria-label={`Notes - ${groupName}`}>
+                {groupNotes.map((note) => (
+                  <NoteItem
+                    key={note.id}
+                    note={note}
+                    isActive={note.id === activeNoteId}
+                    onSelect={() => setActiveNote(note.id)}
+                    isMultiSelect={isMultiSelect}
+                    isSelected={selectedIds.includes(note.id)}
+                    onToggleSelect={() => {
+                      setSelectedIds((prev) =>
+                        prev.includes(note.id)
+                          ? prev.filter((id) => id !== note.id)
+                          : [...prev, note.id]
+                      );
+                    }}
+                  />
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+
+      <BulkActionBar
+        selectedIds={selectedIds}
+        onClear={() => {
+          setSelectedIds([]);
+          setIsMultiSelect(false);
+        }}
+        activeFolderId={activeFolderId}
+      />
 
       <style>{`
+        .note-list-group-section {
+          margin-bottom: 14px;
+        }
+
+        .note-list-group-header {
+          font-size: 0.6875rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-tertiary);
+          padding: 6px 10px;
+          margin-bottom: 4px;
+          user-select: none;
+        }
+
         .note-list {
           list-style: none;
           margin: 0;

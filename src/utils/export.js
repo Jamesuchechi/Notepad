@@ -86,6 +86,101 @@ export async function exportAllData(notes, settings) {
   saveAs(blob, `brain-data-${datestamp()}.zip`);
 }
 
+// ─── JSON Backup Export ─────────────────────────────────────────
+
+export function exportAsJsonBackup(notes, folders, settings) {
+  const backup = {
+    version: '1.0.0',
+    notes,
+    folders,
+    settings,
+    timestamp: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  saveAs(blob, `brain-backup-${datestamp()}.json`);
+}
+
+// ─── PDF Export / Printing ──────────────────────────────────────
+
+export function printNoteAsPdf(note) {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Please allow popups to export as PDF.');
+    return;
+  }
+  const title = note.title?.trim() || 'Untitled';
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${title}</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+          }
+          h1 {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #eaeaea;
+            padding-bottom: 8px;
+          }
+          .meta {
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 24px;
+          }
+          pre {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+          }
+          code {
+            font-family: "Courier New", Courier, monospace;
+            background: #f4f4f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+          }
+          blockquote {
+            border-left: 4px solid #6366f1;
+            margin: 0;
+            padding-left: 16px;
+            color: #555;
+            font-style: italic;
+          }
+          img {
+            max-width: 100%;
+            height: auto;
+          }
+          ul, ol {
+            padding-left: 20px;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${title}</h1>
+        <div class="meta">Created: ${new Date(note.createdAt).toLocaleDateString()} &middot; Edited: ${new Date(note.updatedAt).toLocaleDateString()}</div>
+        <div>${note.content || ''}</div>
+        <script>
+          window.onload = function() {
+            window.print();
+            // Optional: close window after print dialog is closed
+            setTimeout(() => { window.close(); }, 500);
+          }
+        </script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
 // ─── Helpers ────────────────────────────────────────────────────
 
 function stripHtml(html) {

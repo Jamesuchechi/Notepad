@@ -19,6 +19,16 @@ export default function SettingsPanel({ open, onClose }) {
   const notes = useNoteStore((state) => state.notes);
   const [digestStatus, setDigestStatus] = useState('');
 
+  const vaultPasswordHash = useSettingsStore((state) => state.vaultPasswordHash);
+  const setVaultPassword = useSettingsStore((state) => state.setVaultPassword);
+  const clearVaultPassword = useSettingsStore((state) => state.clearVaultPassword);
+  const lockVault = useSettingsStore((state) => state.lockVault);
+
+  const [vaultPasswordInput, setVaultPasswordInput] = useState('');
+  const [vaultVerifyInput, setVaultVerifyInput] = useState('');
+  const [vaultError, setVaultError] = useState('');
+  const [vaultSuccess, setVaultSuccess] = useState('');
+
   useEffect(() => {
     if (!open) return undefined;
 
@@ -136,6 +146,95 @@ export default function SettingsPanel({ open, onClose }) {
             </button>
           </div>
           {digestStatus && <p className="settings-panel__status">{digestStatus}</p>}
+        </div>
+
+        <div className="settings-panel__group">
+          <h3>Security (Encrypted Vault)</h3>
+          <p>Protect your workspace with client-side SHA-256 password encryption.</p>
+          
+          {!vaultPasswordHash ? (
+            <div className="settings-vault-setup">
+              <input
+                type="password"
+                className="settings-panel__input"
+                placeholder="New vault password"
+                value={vaultPasswordInput}
+                onChange={(e) => { setVaultPasswordInput(e.target.value); setVaultError(''); }}
+              />
+              <input
+                type="password"
+                className="settings-panel__input"
+                placeholder="Confirm password"
+                value={vaultVerifyInput}
+                onChange={(e) => { setVaultVerifyInput(e.target.value); setVaultError(''); }}
+              />
+              <button
+                type="button"
+                className="settings-panel__control"
+                onClick={async () => {
+                  if (!vaultPasswordInput.trim()) {
+                    setVaultError('Password cannot be empty.');
+                    return;
+                  }
+                  if (vaultPasswordInput !== vaultVerifyInput) {
+                    setVaultError('Passwords do not match.');
+                    return;
+                  }
+                  await setVaultPassword(vaultPasswordInput);
+                  setVaultPasswordInput('');
+                  setVaultVerifyInput('');
+                  setVaultSuccess('Vault password set successfully.');
+                  setTimeout(() => setVaultSuccess(''), 3000);
+                }}
+              >
+                Enable Vault Lock
+              </button>
+            </div>
+          ) : (
+            <div className="settings-vault-status">
+              <div className="settings-vault-status__row">
+                <span className="settings-vault-status__badge">Locked when app closes</span>
+                <button
+                  type="button"
+                  className="settings-panel__control"
+                  onClick={() => {
+                    lockVault();
+                    onClose();
+                  }}
+                >
+                  Lock Vault Now
+                </button>
+              </div>
+              
+              <div className="settings-vault-clear" style={{ marginTop: '12px' }}>
+                <input
+                  type="password"
+                  className="settings-panel__input"
+                  placeholder="Enter password to disable vault"
+                  value={vaultPasswordInput}
+                  onChange={(e) => { setVaultPasswordInput(e.target.value); setVaultError(''); }}
+                />
+                <button
+                  type="button"
+                  className="settings-panel__control settings-panel__control--danger"
+                  onClick={async () => {
+                    const success = await clearVaultPassword(vaultPasswordInput);
+                    if (success) {
+                      setVaultPasswordInput('');
+                      setVaultSuccess('Vault lock disabled.');
+                      setTimeout(() => setVaultSuccess(''), 3000);
+                    } else {
+                      setVaultError('Incorrect password.');
+                    }
+                  }}
+                >
+                  Disable Vault Lock
+                </button>
+              </div>
+            </div>
+          )}
+          {vaultError && <p className="settings-panel__error" style={{ color: 'var(--danger, #ef4444)', fontSize: '0.8rem', marginTop: '6px' }}>{vaultError}</p>}
+          {vaultSuccess && <p className="settings-panel__success" style={{ color: 'var(--brand)', fontSize: '0.8rem', marginTop: '6px' }}>{vaultSuccess}</p>}
         </div>
 
         <div className="settings-panel__group">
@@ -289,6 +388,46 @@ export default function SettingsPanel({ open, onClose }) {
           border-color: var(--brand);
           background: rgba(79, 70, 229, 0.08);
           color: var(--brand);
+        }
+
+        .settings-panel__input {
+          padding: 8px 12px;
+          border-radius: 10px;
+          border: 1px solid var(--border);
+          background: var(--bg-subtle);
+          color: var(--text-primary);
+          font-family: inherit;
+          font-size: 0.85rem;
+          min-width: 200px;
+        }
+
+        .settings-panel__input:focus {
+          outline: none;
+          border-color: var(--brand);
+        }
+
+        .settings-vault-setup,
+        .settings-vault-clear {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .settings-vault-status__row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .settings-vault-status__badge {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+          background: rgba(245, 158, 11, 0.1);
+          border: 1px solid rgba(245, 158, 11, 0.2);
+          padding: 4px 8px;
+          border-radius: 8px;
         }
       `}</style>
     </div>

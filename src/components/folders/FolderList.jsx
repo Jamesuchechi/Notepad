@@ -25,7 +25,7 @@ export default function FolderList() {
 
   const folderCounts = useMemo(() => {
     return notes.reduce((counts, note) => {
-      if (note.folderId) {
+      if (note.folderId && !note.trashed) {
         counts[note.folderId] = (counts[note.folderId] ?? 0) + 1;
       }
       return counts;
@@ -34,7 +34,11 @@ export default function FolderList() {
 
   const uniqueTags = useMemo(() => {
     const tags = new Set();
-    notes.forEach((note) => note.tags?.forEach((tag) => tags.add(tag)));
+    notes.forEach((note) => {
+      if (!note.trashed) {
+        note.tags?.forEach((tag) => tags.add(tag));
+      }
+    });
     return [...tags].sort((a, b) => a.localeCompare(b));
   }, [notes]);
 
@@ -101,8 +105,9 @@ export default function FolderList() {
   };
 
   const smartFolders = [
-    { id: 'all', label: 'All Notes', count: notes.length },
-    { id: 'pinned', label: 'Pinned', count: notes.filter((note) => note.pinned).length },
+    { id: 'all', label: 'All Notes', count: notes.filter((n) => !n.trashed).length },
+    { id: 'pinned', label: 'Pinned', count: notes.filter((note) => note.pinned && !note.trashed).length },
+    { id: 'trash', label: 'Trash', count: notes.filter((note) => note.trashed).length },
   ];
 
   return (

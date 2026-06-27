@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { Download, FileText, FileCode, File, Archive, ChevronDown } from 'lucide-react';
-import { exportAsMarkdown, exportAsTxt, exportAsHtml, exportAllAsZip } from '@/utils/export';
+import { exportAsMarkdown, exportAsTxt, exportAsHtml, exportAllAsZip, printNoteAsPdf } from '@/utils/export';
 import { useNoteStore } from '@/store/useNoteStore';
 
 export default function ExportMenu({ note }) {
@@ -32,6 +32,11 @@ export default function ExportMenu({ note }) {
       label: 'Export as HTML',
       icon: File,
       action: () => { exportAsHtml(note); setOpen(false); },
+    },
+    {
+      label: 'Export as PDF / Print',
+      icon: FileCode,
+      action: () => { printNoteAsPdf(note); setOpen(false); },
     },
     { divider: true },
     {

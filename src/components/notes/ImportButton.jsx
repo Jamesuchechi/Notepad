@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
+import { useFolderStore } from '@/store/useFolderStore';
+import { useToastStore } from '@/store/useToastStore';
 
 /**
  * ImportButton
  * ─────────────
  * Renders an "Import" button that opens a file picker.
- * Accepts .md and .txt files, creates a new note per file.
+ * Accepts .md, .txt, .html, and .json files, creates a new note per file or restores backup.
  * Also registers a global drag-and-drop handler onto document.body.
  */
 export default function ImportButton() {
@@ -16,22 +18,95 @@ export default function ImportButton() {
 
   const processFiles = async (files) => {
     const accepted = [...files].filter((f) =>
-      f.name.endsWith('.md') || f.name.endsWith('.txt')
+      f.name.endsWith('.md') ||
+      f.name.endsWith('.txt') ||
+      f.name.endsWith('.html') ||
+      f.name.endsWith('.json')
     );
     if (accepted.length === 0) return;
 
     setImporting(true);
+    let importedNotesCount = 0;
+
     for (const file of accepted) {
-      const text = await file.text();
-      const title = file.name.replace(/\.(md|txt)$/, '').trim() || 'Imported note';
+      try {
+        const text = await file.text();
 
-      // Convert plain text to minimal HTML paragraphs
-      const content = text
-        .split(/\n{2,}/)
-        .map((para) => `<p>${para.trim().replace(/\n/g, '<br />')}</p>`)
-        .join('');
+        if (file.name.endsWith('.json')) {
+          const parsed = JSON.parse(text);
+          
+          if (parsed && Array.isArray(parsed.notes)) {
+            // Workspace JSON Backup
+            const existingNoteIds = new Set(useNoteStore.getState().notes.map((n) => n.id));
+            let restoredCount = 0;
 
-      createNote({ title, content });
+            if (Array.isArray(parsed.folders)) {
+              const currentFolders = useFolderStore.getState().folders;
+              const existingFolderIds = new Set(currentFolders.map((f) => f.id));
+
+              parsed.folders.forEach((folder) => {
+                if (!existingFolderIds.has(folder.id)) {
+                  useFolderStore.setState((state) => ({
+                    folders: [...state.folders, folder],
+                  }));
+                }
+              });
+            }
+
+            parsed.notes.forEach((note) => {
+              if (!existingNoteIds.has(note.id)) {
+                useNoteStore.setState((state) => ({
+                  notes: [note, ...state.notes],
+                }));
+                restoredCount++;
+              } else {
+                const { id, ...attrs } = note;
+                createNote({
+                  ...attrs,
+                  title: `${attrs.title} (Imported)`,
+                });
+                restoredCount++;
+              }
+            });
+
+            useToastStore.getState().showToast(`Restored backup: ${restoredCount} notes imported.`);
+          } else if (parsed && parsed.type === 'doc') {
+            // Single note editor JSON format
+            const title = file.name.replace(/\.json$/, '').trim() || 'Imported JSON Note';
+            createNote({ title, content: text });
+            importedNotesCount++;
+          } else {
+            useToastStore.getState().showToast(`Unrecognized JSON format in ${file.name}.`);
+          }
+        } else if (file.name.endsWith('.html')) {
+          // HTML Note Import
+          const titleMatch = text.match(/<title>(.*?)<\/title>/i);
+          const title = titleMatch ? titleMatch[1].trim() : file.name.replace(/\.html$/, '').trim();
+
+          const bodyMatch = text.match(/<body>([\s\S]*?)<\/body>/i);
+          const content = bodyMatch ? bodyMatch[1].trim() : text;
+
+          createNote({ title, content });
+          importedNotesCount++;
+        } else {
+          // Markdown / Plain Text
+          const title = file.name.replace(/\.(md|txt)$/, '').trim() || 'Imported note';
+          const content = text
+            .split(/\n{2,}/)
+            .map((para) => `<p>${para.trim().replace(/\n/g, '<br />')}</p>`)
+            .join('');
+
+          createNote({ title, content });
+          importedNotesCount++;
+        }
+      } catch (err) {
+        console.error(`Failed to process file ${file.name}:`, err);
+        useToastStore.getState().showToast(`Error importing ${file.name}: invalid format.`);
+      }
+    }
+
+    if (importedNotesCount > 0) {
+      useToastStore.getState().showToast(`Successfully imported ${importedNotesCount} note(s).`);
     }
     setImporting(false);
   };
@@ -60,7 +135,6 @@ export default function ImportButton() {
 
   const handleFileChange = (e) => {
     if (e.target.files?.length) processFiles(e.target.files);
-    // Reset so the same file can be re-imported
     e.target.value = '';
   };
 
@@ -69,7 +143,7 @@ export default function ImportButton() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".md,.txt"
+        accept=".md,.txt,.html,.json"
         multiple
         className="import-file-input"
         onChange={handleFileChange}
@@ -79,7 +153,7 @@ export default function ImportButton() {
       <button
         type="button"
         className="import-btn"
-        title="Import .md or .txt files"
+        title="Import .md, .txt, .html or .json files"
         aria-label="Import notes"
         disabled={importing}
         onClick={() => fileInputRef.current?.click()}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Sidebar from './Sidebar';
 import EditorPane from './EditorPane';
 import SearchModal from '../search/SearchModal';
@@ -7,10 +7,13 @@ import KeyboardShortcutsModal from './KeyboardShortcutsModal';
 import TemplateModal from './TemplateModal';
 import AIChatModal from './AIChatModal';
 import VoiceNoteModal from './VoiceNoteModal';
+import VaultLockScreen from '../ui/VaultLockScreen';
 import useKeyboardShortcuts from '@/hooks/useKeyboardShortcuts';
 import { useNoteStore } from '@/store/useNoteStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 
 export default function AppShell() {
+  const vaultLocked = useSettingsStore((s) => s.vaultLocked);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -23,6 +26,26 @@ export default function AppShell() {
   const [forceSaveSignal, setForceSaveSignal] = useState(0);
 
   const createNote = useNoteStore((s) => s.createNote);
+  const notes = useNoteStore((s) => s.notes);
+  const deleteNotePermanently = useNoteStore((s) => s.deleteNotePermanently);
+  const hasCleanedUpRef = useRef(false);
+
+  useEffect(() => {
+    if (hasCleanedUpRef.current) return;
+    hasCleanedUpRef.current = true;
+
+    const THRESHOLD = 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    notes.forEach((note) => {
+      if (note.trashed && note.updatedAt) {
+        const deletedTime = new Date(note.updatedAt).getTime();
+        if (now - deletedTime > THRESHOLD) {
+          deleteNotePermanently(note.id);
+        }
+      }
+    });
+  }, [notes, deleteNotePermanently]);
 
   const openSidebar = () => setSidebarOpen(true);
   const closeSidebar = () => setSidebarOpen(false);
@@ -68,6 +91,10 @@ export default function AppShell() {
     onOpenShortcuts: openShortcuts,
     onCloseModals: closeModals,
   });
+
+  if (vaultLocked) {
+    return <VaultLockScreen />;
+  }
 
   return (
     <div className={`app-shell ${focusMode ? 'app-shell--focus' : ''}`}>
