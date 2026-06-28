@@ -125,7 +125,7 @@ const td = new TurndownService({
   codeBlockStyle: 'fenced',
 });
 
-export default function Editor({ note, previewMode = false, focusMode = false, forceSaveSignal = 0, onToggleFocusMode }) {
+export default function Editor({ note, previewMode = false, focusMode = false, forceSaveSignal = 0, onTogglePreview, onToggleFocusMode }) {
   const updateNote = useNoteStore((s) => s.updateNote);
   const notes = useNoteStore((s) => s.notes);
   const aiEnabled = useSettingsStore((s) => s.aiEnabled);
