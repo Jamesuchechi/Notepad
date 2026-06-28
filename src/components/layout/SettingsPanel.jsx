@@ -2,11 +2,21 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useNoteStore } from '@/store/useNoteStore';
-import { exportAllData } from '@/utils/export';
+import { useFolderStore } from '@/store/useFolderStore';
+import { exportAllData, exportAsJsonBackup } from '@/utils/export';
 import { generateWeeklyDigest } from '@/utils/ai';
+import { useSyncStore } from '@/store/useSyncStore';
+import { useCollabStore } from '@/store/useCollabStore';
+
+
+
 
 export default function SettingsPanel({ open, onClose }) {
+  const syncStore = useSyncStore();
+  const collabStore = useCollabStore();
   const theme = useSettingsStore((state) => state.theme);
+
+
   const fontSize = useSettingsStore((state) => state.fontSize);
   const aiEnabled = useSettingsStore((state) => state.aiEnabled);
   const aiFeatures = useSettingsStore((state) => state.aiFeatures);
@@ -17,7 +27,9 @@ export default function SettingsPanel({ open, onClose }) {
   const clearAllNotes = useNoteStore((state) => state.clearAllNotes);
   const createNote = useNoteStore((state) => state.createNote);
   const notes = useNoteStore((state) => state.notes);
+  const folders = useFolderStore((state) => state.folders);
   const [digestStatus, setDigestStatus] = useState('');
+
 
   const vaultPasswordHash = useSettingsStore((state) => state.vaultPasswordHash);
   const setVaultPassword = useSettingsStore((state) => state.setVaultPassword);
@@ -250,6 +262,22 @@ export default function SettingsPanel({ open, onClose }) {
             </button>
             <button
               type="button"
+              className="settings-panel__control"
+              onClick={() => {
+                const settings = {
+                  theme,
+                  fontSize,
+                  aiEnabled,
+                  aiFeatures,
+                };
+                exportAsJsonBackup(notes, folders, settings);
+              }}
+            >
+              Export JSON backup
+            </button>
+
+            <button
+              type="button"
               className="settings-panel__control settings-panel__control--danger"
               onClick={() => {
                 if (window.confirm('Clear all notes? This cannot be undone.')) {
@@ -260,6 +288,112 @@ export default function SettingsPanel({ open, onClose }) {
             >
               Clear all notes
             </button>
+          </div>
+        </div>
+
+        <div className="settings-panel__group">
+          <h3>Local Vault Sync (File System API)</h3>
+          <p>Link your notes directly to a folder on your computer's file system for automatic local markdown backups.</p>
+          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {syncStore.dirHandle ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--bg-subtle)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: syncStore.permissionGranted ? '#10b981' : '#f59e0b' }} />
+                  Linked Directory: <strong>{syncStore.dirHandle.name}</strong>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {!syncStore.permissionGranted && (
+                    <button
+                      type="button"
+                      className="settings-panel__control"
+                      style={{ background: 'var(--brand)', color: 'white' }}
+                      onClick={() => syncStore.requestPermission()}
+                    >
+                      Authorize Read/Write
+                    </button>
+                  )}
+                  {syncStore.permissionGranted && (
+                    <button
+                      type="button"
+                      className="settings-panel__control"
+                      onClick={() => syncStore.syncNotesFromDisk()}
+                    >
+                      Sync Now
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="settings-panel__control settings-panel__control--danger"
+                    onClick={() => syncStore.disconnectDirectory()}
+                  >
+                    Disconnect Folder
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="settings-panel__control"
+                style={{ alignSelf: 'flex-start' }}
+                onClick={() => syncStore.selectDirectory()}
+              >
+                Connect Local Folder
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="settings-panel__group">
+          <h3>P2P Collaboration</h3>
+          <p>Share and sync your notes in real-time with other devices using peer-to-peer WebRTC encryption.</p>
+          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={collabStore.enabled}
+                onChange={() => collabStore.toggleEnabled()}
+                style={{ width: '16px', height: '16px', accentColor: 'var(--brand)' }}
+              />
+              Enable Real-time P2P Collaboration
+            </label>
+
+            {collabStore.enabled && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--bg-subtle)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Collaboration Room ID (Secret Key):</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={collabStore.roomId}
+                      onChange={(e) => collabStore.setRoomId(e.target.value)}
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '0.82rem' }}
+                      placeholder="Enter room ID or generate one"
+                    />
+                    <button
+                      type="button"
+                      className="settings-panel__control"
+                      onClick={() => {
+                        const randomId = crypto.randomUUID ? crypto.randomUUID() : 'collab-' + Math.random().toString(36).substr(2, 9);
+                        collabStore.setRoomId(randomId);
+                      }}
+                    >
+                      Generate ID
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Signaling Server (Optional):</label>
+                  <input
+                    type="text"
+                    value={collabStore.signalingServer}
+                    onChange={(e) => collabStore.setSignalingServer(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '0.82rem' }}
+                    placeholder="wss://signaling.yjs.dev"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

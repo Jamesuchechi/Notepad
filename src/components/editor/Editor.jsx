@@ -32,7 +32,12 @@ import {
   X,
   Sparkles,
   Link2,
+  Sigma,
+  Workflow,
 } from 'lucide-react';
+import { MathBlock } from './MathBlock';
+import { MermaidBlock } from './MermaidBlock';
+
 import { useNoteStore } from '@/store/useNoteStore';
 import ExportMenu from '@/components/editor/ExportMenu';
 import HistoryMenu from '@/components/editor/HistoryMenu';
@@ -253,6 +258,8 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
       DetailsSummary,
       DetailsContent,
       WikiLink,
+      MathBlock,
+      MermaidBlock,
     ],
     content: note.content || DEFAULT_DOC,
     editorProps: {
@@ -633,6 +640,18 @@ Suggested tags:`;
         icon: Minus,
         action: () => editor?.chain().focus().setHorizontalRule().run(),
         active: false,
+      },
+      {
+        label: 'Math formula',
+        icon: Sigma,
+        action: () => editor?.chain().focus().insertContent({ type: 'mathBlock' }).run(),
+        active: editor?.isActive('mathBlock'),
+      },
+      {
+        label: 'Mermaid diagram',
+        icon: Workflow,
+        action: () => editor?.chain().focus().insertContent({ type: 'mermaidBlock' }).run(),
+        active: editor?.isActive('mermaidBlock'),
       },
       {
         label: 'Undo',

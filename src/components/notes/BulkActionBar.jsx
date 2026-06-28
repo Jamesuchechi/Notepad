@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Trash2, FolderPlus, Tag, X, RotateCcw } from 'lucide-react';
+import { Trash2, FolderPlus, Tag, X, RotateCcw, Download } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
 import { useFolderStore } from '@/store/useFolderStore';
 import { useToastStore } from '@/store/useToastStore';
+import { exportAllAsZip } from '@/utils/export';
+
 
 export default function BulkActionBar({ selectedIds, onClear, activeFolderId }) {
   const [showFolderMenu, setShowFolderMenu] = useState(false);
@@ -82,6 +84,21 @@ export default function BulkActionBar({ selectedIds, onClear, activeFolderId }) 
     setShowTagInput(false);
     onClear();
   };
+
+  const handleBulkExport = async () => {
+    const notes = useNoteStore.getState().notes;
+    const selectedNotes = notes.filter((n) => selectedIds.includes(n.id));
+    if (selectedNotes.length === 0) return;
+    try {
+      await exportAllAsZip(selectedNotes);
+      useToastStore.getState().showToast(`Successfully exported ${selectedNotes.length} note(s) as zip.`);
+      onClear();
+    } catch (error) {
+      console.error('Failed to export notes in bulk:', error);
+      useToastStore.getState().showToast('Failed to export notes.');
+    }
+  };
+
 
   return (
     <div className="bulk-action-bar" role="toolbar" aria-label="Bulk actions">
@@ -172,6 +189,16 @@ export default function BulkActionBar({ selectedIds, onClear, activeFolderId }) 
                 </form>
               )}
             </div>
+
+            <button
+              type="button"
+              className="bulk-action-bar__btn"
+              onClick={handleBulkExport}
+              title="Export selected notes as ZIP"
+            >
+              <Download size={14} />
+              <span>Export</span>
+            </button>
 
             <button
               type="button"

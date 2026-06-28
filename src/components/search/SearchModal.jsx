@@ -3,6 +3,8 @@ import { Search, X, Sparkles, AlertCircle } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { stream } from '@/utils/ai';
+import { semanticSearch, getEmbeddingStatus, subscribeToEmbeddingStatus } from '@/utils/embeddings';
+
 
 function stripHtml(html) {
   const div = document.createElement('div');
@@ -29,6 +31,13 @@ export default function SearchModal({ open, onClose }) {
   const [isSearchingAI, setIsSearchingAI] = useState(false);
   const [aiResults, setAiResults] = useState([]);
   const [fallbackActive, setFallbackActive] = useState(false);
+  const [embeddingStatus, setEmbeddingStatus] = useState(getEmbeddingStatus());
+
+  useEffect(() => {
+    return subscribeToEmbeddingStatus((newStatus) => {
+      setEmbeddingStatus(newStatus);
+    });
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -82,66 +91,41 @@ export default function SearchModal({ open, onClose }) {
     setIsSearchingAI(true);
     setFallbackActive(false);
 
-    const notesData = notes.map((n) => ({
-      id: n.id,
-      title: n.title || 'Untitled',
-      content: stripHtml(n.content || '').slice(0, 250),
-    }));
-
-    const systemPrompt = `You are a semantic search engine for a notes app. Given a query and a JSON list of notes, return a JSON array of the notes that match the query semantically.
-Rank them in order of relevance (most relevant first).
-For each matching note, return a JSON object with:
-1. "id": the exact string ID of the note.
-2. "snippet": a short snippet of the note content (approx 100-150 chars) highlighting the relevance. Wrap the key terms relevant to the query in <mark>...</mark> tags.
-
-If no notes are relevant, return an empty array [].
-Return ONLY the JSON array. Do not include markdown code block syntax (like \`\`\`json) or any explanations outside the JSON.`;
-
-    const userPrompt = `Query: "${trimmed}"\n\nNotes:\n${JSON.stringify(notesData, null, 2)}`;
-
     try {
-      const messages = [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ];
+      const semanticMatches = await semanticSearch(trimmed, notes);
+      
+      const mapped = semanticMatches.map(({ note, similarity }) => {
+        const title = note.title || 'Untitled';
+        const content = stripHtml(note.content || '');
+        
+        // Find best context snippet matching any parts of query
+        const index = content.toLowerCase().indexOf(trimmed.toLowerCase());
+        let snippet = content;
+        if (index >= 0) {
+          const start = Math.max(0, index - 40);
+          const end = Math.min(content.length, index + trimmed.length + 100);
+          snippet = `${start > 0 ? '…' : ''}${content.slice(start, end)}${end < content.length ? '…' : ''}`;
+        } else {
+          snippet = content.slice(0, 160) + (content.length > 160 ? '…' : '');
+        }
 
-      let accumulatedText = '';
-      const responseStream = stream(messages);
-      for await (const chunk of responseStream) {
-        accumulatedText += chunk;
-      }
+        const matchPct = Math.round(similarity * 100);
 
-      const cleaned = accumulatedText.replace(/```json|```/g, '').trim();
-      if (cleaned === '[]' || !cleaned) {
-        setAiResults([]);
-        return;
-      }
-
-      const ranked = JSON.parse(cleaned);
-      if (!Array.isArray(ranked)) {
-        throw new Error('Response is not a JSON array');
-      }
-
-      const mapped = ranked
-        .map((item) => {
-          const note = notes.find((n) => n.id === item.id);
-          if (!note) return null;
-          return {
-            id: note.id,
-            title: note.title || 'Untitled',
-            snippet: item.snippet,
-            titleHtml: note.title || 'Untitled',
-            updatedAt: note.updatedAt,
-          };
-        })
-        .filter(Boolean);
+        return {
+          id: note.id,
+          title: note.title || 'Untitled',
+          snippet: highlightTerm(snippet, trimmed),
+          titleHtml: highlightTerm(title, trimmed) + ` <span class="search-modal__match-badge">${matchPct}% Match</span>`,
+          updatedAt: note.updatedAt,
+        };
+      });
 
       setAiResults(mapped);
     } catch (err) {
-      console.error('AI search failed, falling back to keyword search:', err);
+      console.error('Offline AI search failed, falling back to keyword search:', err);
       setFallbackActive(true);
       
-      // Fallback: use keyword filtering
+      // Fallback: keyword filtering
       const keywordResults = notes
         .map((note) => {
           const title = note.title?.trim() || 'Untitled';
@@ -268,7 +252,12 @@ Return ONLY the JSON array. Do not include markdown code block syntax (like \`\`
           {searchMode === 'ai' && isSearchingAI ? (
             <div className="search-modal__loading">
               <div className="search-modal__spinner search-modal__spinner--large" />
-              <div>AI is analyzing and ranking your notes...</div>
+              <div>AI is analyzing your notes offline...</div>
+              {embeddingStatus === 'loading' && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Downloading offline AI model (~23MB, cached for future queries)
+                </div>
+              )}
             </div>
           ) : searchMode === 'ai' ? (
             !query ? (
@@ -428,6 +417,16 @@ Return ONLY the JSON array. Do not include markdown code block syntax (like \`\`
           color: var(--text-secondary);
           line-height: 1.5;
           font-size: 0.88rem;
+        }
+
+        .search-modal__match-badge {
+          font-size: 0.72rem;
+          background: rgba(16, 185, 129, 0.1);
+          color: #10b981;
+          padding: 2px 6px;
+          border-radius: 4px;
+          margin-left: 6px;
+          font-weight: 500;
         }
 
         .search-modal__snippet mark,

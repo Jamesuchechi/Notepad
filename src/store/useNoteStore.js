@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsStore } from './useSettingsStore';
-import { safeLocalStorage } from '@/utils/storage';
+import { indexedDBStorage } from '@/utils/storage';
 
 export const useNoteStore = create(
   persist(
@@ -32,6 +32,15 @@ export const useNoteStore = create(
         }));
 
         useSettingsStore.getState().setLastOpenedNoteId(note.id);
+        
+        import('./useSyncStore').then(({ useSyncStore }) => {
+          useSyncStore.getState().writeNoteToDisk(note);
+        });
+
+        import('@/utils/embeddings').then(({ updateNoteEmbedding }) => {
+          updateNoteEmbedding(note);
+        });
+
         return note;
       },
 
@@ -63,12 +72,22 @@ export const useNoteStore = create(
               }
             }
 
-            return {
+            const updatedNote = {
               ...note,
               ...patch,
               history,
               updatedAt: new Date().toISOString(),
             };
+
+            import('./useSyncStore').then(({ useSyncStore }) => {
+              useSyncStore.getState().writeNoteToDisk(updatedNote);
+            });
+
+            import('@/utils/embeddings').then(({ updateNoteEmbedding }) => {
+              updateNoteEmbedding(updatedNote);
+            });
+
+            return updatedNote;
           }),
         }));
       },
@@ -77,16 +96,21 @@ export const useNoteStore = create(
         // Now moves to Trash by default (soft delete)
         const isActive = get().activeNoteId === id;
         set((state) => ({
-          notes: state.notes.map((note) =>
-            note.id === id
-              ? {
-                  ...note,
-                  trashed: true,
-                  trashedAt: new Date().toISOString(),
-                  pinned: false,
-                }
-              : note
-          ),
+          notes: state.notes.map((note) => {
+            if (note.id !== id) return note;
+            const updated = {
+              ...note,
+              trashed: true,
+              trashedAt: new Date().toISOString(),
+              pinned: false,
+            };
+            
+            import('./useSyncStore').then(({ useSyncStore }) => {
+              useSyncStore.getState().writeNoteToDisk(updated);
+            });
+
+            return updated;
+          }),
           activeNoteId: isActive ? null : state.activeNoteId,
         }));
 
@@ -97,24 +121,39 @@ export const useNoteStore = create(
 
       restoreNote: (id) => {
         set((state) => ({
-          notes: state.notes.map((note) =>
-            note.id === id
-              ? {
-                  ...note,
-                  trashed: false,
-                  trashedAt: null,
-                }
-              : note
-          ),
+          notes: state.notes.map((note) => {
+            if (note.id !== id) return note;
+            const updated = {
+              ...note,
+              trashed: false,
+              trashedAt: null,
+            };
+
+            import('./useSyncStore').then(({ useSyncStore }) => {
+              useSyncStore.getState().writeNoteToDisk(updated);
+            });
+
+            return updated;
+          }),
         }));
       },
 
       deleteNotePermanently: (id) => {
+        const note = get().notes.find((n) => n.id === id);
         const isActive = get().activeNoteId === id;
         set((state) => ({
           notes: state.notes.filter((note) => note.id !== id),
           activeNoteId: isActive ? null : state.activeNoteId,
         }));
+
+        if (note) {
+          import('./useSyncStore').then(({ useSyncStore }) => {
+            useSyncStore.getState().deleteNoteFromDisk(note);
+          });
+          import('@/utils/embeddings').then(({ deleteNoteEmbedding }) => {
+            deleteNoteEmbedding(id);
+          });
+        }
 
         if (isActive) {
           useSettingsStore.getState().setLastOpenedNoteId(null);
@@ -228,7 +267,8 @@ export const useNoteStore = create(
     }),
     {
       name: 'brain_notes',
-      storage: safeLocalStorage,
+      storage: indexedDBStorage,
+      skipHydration: true,
     }
   )
 );

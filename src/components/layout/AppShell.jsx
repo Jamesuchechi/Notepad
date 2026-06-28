@@ -8,9 +8,22 @@ import TemplateModal from './TemplateModal';
 import AIChatModal from './AIChatModal';
 import VoiceNoteModal from './VoiceNoteModal';
 import VaultLockScreen from '../ui/VaultLockScreen';
+import ToastContainer from '../ui/ToastContainer';
 import useKeyboardShortcuts from '@/hooks/useKeyboardShortcuts';
+import CanvasModal from './CanvasModal';
+import GraphModal from './GraphModal';
+
+
+
+
 import { useNoteStore } from '@/store/useNoteStore';
+import { useFolderStore } from '@/store/useFolderStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
+import { useSyncStore } from '@/store/useSyncStore';
+import { useCollabStore } from '@/store/useCollabStore';
+
+
+
 
 export default function AppShell() {
   const vaultLocked = useSettingsStore((s) => s.vaultLocked);
@@ -21,7 +34,9 @@ export default function AppShell() {
   const [templateOpen, setTemplateOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [voiceNoteOpen, setVoiceNoteOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+
   const [previewMode, setPreviewMode] = useState(false);
   const [forceSaveSignal, setForceSaveSignal] = useState(0);
 
@@ -47,6 +62,40 @@ export default function AppShell() {
     });
   }, [notes, deleteNotePermanently]);
 
+  useEffect(() => {
+    // Check if vault is active
+    const settingsStr = localStorage.getItem('brain_settings');
+    let isLocked = false;
+    if (settingsStr) {
+      try {
+        const parsed = JSON.parse(settingsStr);
+        if (parsed?.state?.vaultPasswordHash) {
+          isLocked = true;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    if (!isLocked) {
+      // Rehydrate notes and folders immediately if vault is not password locked
+      Promise.all([
+        useNoteStore.persist.rehydrate(),
+        useFolderStore.persist.rehydrate()
+      ]).then(() => {
+        useSyncStore.getState().initSync();
+        if (useCollabStore.getState().enabled) {
+          useCollabStore.getState().connect();
+        }
+      }).catch(console.error);
+    } else {
+      useSyncStore.getState().initSync();
+      if (useCollabStore.getState().enabled) {
+        useCollabStore.getState().connect();
+      }
+    }
+  }, []);
+
   const openSidebar = () => setSidebarOpen(true);
   const closeSidebar = () => setSidebarOpen(false);
   const openSearch = () => setSearchOpen(true);
@@ -61,6 +110,13 @@ export default function AppShell() {
   const closeAIChat = () => setChatOpen(false);
   const openVoiceNote = () => setVoiceNoteOpen(true);
   const closeVoiceNote = () => setVoiceNoteOpen(false);
+  const openGraph = () => setGraphOpen(true);
+  const closeGraph = () => setGraphOpen(false);
+  const [canvasOpen, setCanvasOpen] = useState(false);
+  const openCanvas = () => setCanvasOpen(true);
+  const closeCanvas = () => setCanvasOpen(false);
+
+
 
   const toggleFocusMode = () => {
     setFocusMode((current) => !current);
@@ -76,6 +132,8 @@ export default function AppShell() {
     setShortcutsOpen(false);
     setTemplateOpen(false);
     setSidebarOpen(false);
+    setGraphOpen(false);
+    setCanvasOpen(false);
   };
 
   useKeyboardShortcuts({
@@ -117,6 +175,8 @@ export default function AppShell() {
           onOpenTemplate={openTemplate}
           onOpenAIChat={openAIChat}
           onOpenVoiceNote={openVoiceNote}
+          onOpenGraph={openGraph}
+          onOpenCanvas={openCanvas}
         />
       </aside>
 
@@ -138,6 +198,11 @@ export default function AppShell() {
       <AIChatModal open={chatOpen} onClose={closeAIChat} />
       <VoiceNoteModal open={voiceNoteOpen} onClose={closeVoiceNote} />
       <KeyboardShortcutsModal open={shortcutsOpen} onClose={closeShortcuts} />
+      <GraphModal open={graphOpen} onClose={closeGraph} />
+      <CanvasModal open={canvasOpen} onClose={closeCanvas} />
+      <ToastContainer />
+
+
 
       {/* ── Scoped styles ─────────────────────────────────────── */}
       <style>{`

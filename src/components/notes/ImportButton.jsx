@@ -3,6 +3,8 @@ import { Upload } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
 import { useFolderStore } from '@/store/useFolderStore';
 import { useToastStore } from '@/store/useToastStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+
 
 /**
  * ImportButton
@@ -69,7 +71,22 @@ export default function ImportButton() {
               }
             });
 
-            useToastStore.getState().showToast(`Restored backup: ${restoredCount} notes imported.`);
+            if (parsed.settings) {
+              const { theme, fontSize, aiEnabled, aiFeatures } = parsed.settings;
+              if (theme) useSettingsStore.getState().setTheme(theme);
+              if (fontSize) useSettingsStore.getState().setFontSize(fontSize);
+              if (aiEnabled !== undefined) useSettingsStore.getState().setAiEnabled(aiEnabled);
+              if (aiFeatures) {
+                Object.entries(aiFeatures).forEach(([feature, enabled]) => {
+                  const currentFeatures = useSettingsStore.getState().aiFeatures;
+                  if (currentFeatures && currentFeatures[feature] !== enabled) {
+                    useSettingsStore.getState().toggleAiFeature(feature);
+                  }
+                });
+              }
+            }
+
+            useToastStore.getState().showToast(`Restored backup: ${restoredCount} notes and settings imported.`);
           } else if (parsed && parsed.type === 'doc') {
             // Single note editor JSON format
             const title = file.name.replace(/\.json$/, '').trim() || 'Imported JSON Note';

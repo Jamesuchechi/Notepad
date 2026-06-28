@@ -290,47 +290,61 @@ Phased plan from project setup to a fully polished app. Work through each phase 
 
 ## Phase 16 — Product polish, reliability, and AI enhancements
 
-- [ ] Add archive / trash with undo support instead of hard delete
-- [ ] Add note history / versioning and restore previous note versions
-- [ ] Add multi-select bulk actions for notes: delete, move, tag, export
-- [ ] Improve folder/tag filtering with UI controls in the sidebar
-- [ ] Add note linking / backlinks support (wiki-style `[[note]]` links)
-- [ ] Add date-based note groups in the sidebar: Today, This week, Older
-- [ ] Move local persistence from `localStorage` to IndexedDB or `localForage` for larger note sets
-- [ ] Add explicit backup / restore workflow for app state and settings
-- [ ] Add JSON backup export / restore flow
-- [ ] Add optional encrypted local vault or password-lock mode for privacy
-- [ ] Improve AI availability UX when API key is missing or the service is unavailable
-- [ ] Surface AI status clearly in the UI: busy, queued, failed, unavailable
-- [ ] Add fallback AI-free workflows for search and note helpers
-- [ ] Add more AI actions: note summarization, action item extraction, rewrite/expand/shorten note text
-- [ ] Let users accept or reject AI-suggested tags, prompts, and related note recommendations
-- [ ] Add PDF export support
-- [ ] Support importing `.html` or editor JSON content in addition to `.md` / `.txt`
-- [ ] Add copy-to-clipboard and share note text flow
-- [ ] Add a command palette / quick add menu for fast actions
-- [ ] Add daily note / calendar view support for journal workflows
-- [ ] Add inline todo checkboxes or task metadata support
-- [ ] Add custom editor themes and additional font options beyond size
-- [ ] Improve mobile responsiveness for sidebar, modals, and keyboard shortcut help
-- [ ] Add visible onboarding / first-run tour for templates and AI features
-- [ ] Add a “last saved” / status indicator for saving state
-- [ ] Add settings for autosave frequency, note sort order, and default new note folder
-- [ ] Improve export/import interoperability with markdown-first workflows
-- [ ] Add a simpler mobile UI or optimized mobile layout
-- [ ] Consider a stronger product positioning as a “local-first personal knowledge workspace” rather than only a notepad---
+- [x] Add archive / trash with undo support instead of hard delete
+- [x] Add note history / versioning and restore previous note versions
+- [x] Add multi-select bulk actions for notes: delete, move, tag, export
+- [x] Improve folder/tag filtering with UI controls in the sidebar
+- [x] Add note linking / backlinks support (wiki-style `[[note]]` links)
+- [x] Add date-based note groups in the sidebar: Today, This week, Older
+- [x] Move local persistence from `localStorage` to IndexedDB or `localForage` for larger note sets
+- [x] Add explicit backup / restore workflow for app state and settings
+- [x] Add JSON backup export / restore flow
+- [x] Add optional encrypted local vault or password-lock mode for privacy
+- [x] Improve AI availability UX when API key is missing or the service is unavailable
+-[x] Surface AI status clearly in the UI: busy, queued, failed, unavailable
+- [x] Add fallback AI-free workflows for search and note helpers
+- [x] Add more AI actions: note summarization, action item extraction, rewrite/expand/shorten note text
+- [x] Let users accept or reject AI-suggested tags, prompts, and related note recommendations
+- [x] Add PDF export support
+- [x] Support importing `.html` or editor JSON content in addition to `.md` / `.txt`
+- [x] Add copy-to-clipboard and share note text flow
+- [x] Add a command palette / quick add menu for fast actions
+- [x] Add daily note / calendar view support for journal workflows
+- [x] Add inline todo checkboxes or task metadata support
+- [x] Add custom editor themes and additional font options beyond size
+- [x] Improve mobile responsiveness for sidebar, modals, and keyboard shortcut help
+- [x] Add visible onboarding / first-run tour for templates and AI features
+- [x] Add a “last saved” / status indicator for saving state
+- [x] Add settings for autosave frequency, note sort order, and default new note folder
+- [x] Improve export/import interoperability with markdown-first workflows
+- [x] Add a simpler mobile UI or optimized mobile layout
+- [x] Consider a stronger product positioning as a “local-first personal knowledge workspace” rather than only a notepad
+---
 
 ## Phase 17 — Final QA & Deploy
 
-- [ ] Test full flow end to end: create, edit, organise, search, export, import
-- [ ] Test all AI features: action menu, summarise, search, journal prompt, auto-tag, related notes, chat, voice, digest
-- [ ] Test in Chrome, Firefox, Safari
-- [ ] Test on mobile screen widths (sidebar collapse behaviour)
-- [ ] Lighthouse audit — aim for 95+ performance, 100 accessibility
-- [ ] Write final `README.md` sections: screenshots, demo GIF
-- [ ] Deploy to Vercel or Netlify (connect GitHub repo, auto-deploy on push)
-- [ ] Add custom domain (optional)
-- [ ] Tag `v1.0.0` release on GitHub
+- [x] Test full flow end to end: create, edit, organise, search, export, import
+- [x] Test all AI features: action menu, summarise, search, journal prompt, auto-tag, related notes, chat, voice, digest
+- [x] Test in Chrome, Firefox, Safari
+- [x] Test on mobile screen widths (sidebar collapse behaviour)
+- [x] Lighthouse audit — aim for 95+ performance, 100 accessibility
+- [x] Write final `README.md` sections: screenshots, demo GIF
+- [x] Deploy to Vercel or Netlify (connect GitHub repo, auto-deploy on push)
+- [x] Add custom domain (optional)
+- [x] Tag `v1.0.0` release on GitHub
+
+---
+
+## Phase 18 — Local-First PKM & Offline AI Enhancements
+
+- [x] Implement direct File System Access API support for reading/writing local directory of Markdown files
+- [x] Add CRDT collaborative sync engine (Yjs/Automerge) via peer-to-peer WebRTC and self-hosted sync servers
+- [x] Implement database-level Zero-Knowledge encryption (AES-GCM via Web Crypto API) for IndexedDB
+- [x] Build interactive 2D/3D force-directed node Graph View representing note links and backlinks
+- [x] Add client-side vector search and related notes using Transformers.js for 100% offline semantic capabilities
+- [x] Introduce visual Canvas / Board layout supporting draggable note cards, images, and connection arrows
+- [x] Add native KaTeX editor extension for LaTeX mathematical formula rendering
+- [x] Add Mermaid.js editor extension for flowchart and system diagram generation
 
 ---
 
