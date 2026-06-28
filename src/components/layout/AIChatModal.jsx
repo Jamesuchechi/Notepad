@@ -4,6 +4,27 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 import { X, Send, MessageCircle, Link2 } from 'lucide-react';
 import { stream } from '@/utils/ai';
 
+function parseMarkdownInline(text) {
+  if (typeof text !== 'string') return text;
+  const parts = text.split('**');
+  return parts.map((part, index) => {
+    if (index % 2 === 1) {
+      return <strong key={index}>{part}</strong>;
+    }
+    const subParts = part.split('*');
+    if (subParts.length > 1) {
+      return subParts.map((subPart, subIndex) => {
+        if (subIndex % 2 === 1) {
+          return <em key={`${index}-${subIndex}`}>{subPart}</em>;
+        }
+        return subPart;
+      });
+    }
+    return part;
+  });
+}
+
+
 const MAX_CHUNK_LENGTH = 1200;
 
 function formatNoteSnippet(note) {
@@ -181,20 +202,43 @@ export default function AIChatModal({ open, onClose }) {
                                         }
 
                                         if (/^[-*]\s+/.test(trimmed)) {
-                                            return <div key={`${message.role}-${index}-${lineIndex}`} className="ai-chat-message__bullet">• {trimmed.replace(/^[-*]\s+/, '')}</div>;
+                                            const content = trimmed.replace(/^[-*]\s+/, '');
+                                            return (
+                                                <div key={`${message.role}-${index}-${lineIndex}`} className="ai-chat-message__bullet">
+                                                    • {parseMarkdownInline(content)}
+                                                </div>
+                                            );
                                         }
 
                                         if (/^\d+\.\s+/.test(trimmed)) {
-                                            return <div key={`${message.role}-${index}-${lineIndex}`} className="ai-chat-message__numbered">{trimmed}</div>;
+                                            const match = trimmed.match(/^(\d+\.\s+)(.*)$/);
+                                            if (match) {
+                                                return (
+                                                    <div key={`${message.role}-${index}-${lineIndex}`} className="ai-chat-message__numbered">
+                                                        <span style={{ fontWeight: '600' }}>{match[1]}</span>
+                                                        {parseMarkdownInline(match[2])}
+                                                    </div>
+                                                );
+                                            }
+                                            return <div key={`${message.role}-${index}-${lineIndex}`} className="ai-chat-message__numbered">{parseMarkdownInline(trimmed)}</div>;
                                         }
 
                                         if (/^#{1,3}\s+/.test(trimmed)) {
                                             const level = trimmed.match(/^#+/)[0].length;
                                             const HeadingTag = `h${Math.min(level + 1, 4)}`;
-                                            return <HeadingTag key={`${message.role}-${index}-${lineIndex}`} className="ai-chat-message__heading">{trimmed.replace(/^#{1,3}\s+/, '')}</HeadingTag>;
+                                            const content = trimmed.replace(/^#{1,3}\s+/, '');
+                                            return (
+                                                <HeadingTag key={`${message.role}-${index}-${lineIndex}`} className="ai-chat-message__heading">
+                                                    {parseMarkdownInline(content)}
+                                                </HeadingTag>
+                                            );
                                         }
 
-                                        return <div key={`${message.role}-${index}-${lineIndex}`} className="ai-chat-message__paragraph">{trimmed}</div>;
+                                        return (
+                                            <div key={`${message.role}-${index}-${lineIndex}`} className="ai-chat-message__paragraph">
+                                                {parseMarkdownInline(trimmed)}
+                                            </div>
+                                        );
                                     })}
                                 </div>
                             </div>

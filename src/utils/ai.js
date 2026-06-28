@@ -183,75 +183,75 @@ export async function* stream(messages, options = {}) {
   }
 
   try {
-    if (orApiKey) {
+    if (groqApiKey) {
       try {
-        const openRouter = new OpenRouter({
-          apiKey: orApiKey,
-          httpReferer: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
-          appTitle: 'Brain Notepad',
-        });
-
-        const { signal, model, ...chatRequestOptions } = options;
-        const modelsToTry = Array.from(
-          new Set([model, ...STABLE_FREE_MODELS].filter(Boolean))
-        );
-
-        let lastError = null;
-        let response;
-
-        for (const currentModel of modelsToTry) {
-          try {
-            response = await openRouter.chat.send(
-              {
-                chatRequest: {
-                  model: currentModel,
-                  messages,
-                  stream: true,
-                  max_tokens: chatRequestOptions.max_tokens ?? 1024,
-                  ...chatRequestOptions,
-                },
-              },
-              {
-                signal,
-              }
-            );
-            break;
-          } catch (error) {
-            lastError = error;
-            if (isRateLimitError(error)) {
-              // Wait a bit to cool down, then continue to other fallback models in the list
-              await wait(1000);
-            }
-            if (!isRetryableModelError(error) || currentModel === modelsToTry[modelsToTry.length - 1]) {
-              throw error;
-            }
-          }
-        }
-
-        if (!response) {
-          throw lastError || new Error('No AI response available');
-        }
-
-        for await (const chunk of response) {
-          if (options.signal?.aborted) {
-            break;
-          }
-          const content = chunk.choices?.[0]?.delta?.content || '';
-          if (content) {
-            yield content;
-          }
-        }
-        return; // Success, skip fallback
-      } catch (orError) {
-        console.warn('OpenRouter failed, attempting Groq fallback...', orError);
-        if (!groqApiKey) {
-          throw orError; // No fallback available
+        yield* streamGroq(messages, options, groqApiKey);
+        return; // Success
+      } catch (groqError) {
+        console.warn('Groq failed, attempting OpenRouter fallback...', groqError);
+        if (!orApiKey) {
+          throw groqError;
         }
       }
     }
 
-    // Fallback to Groq
-    yield* streamGroq(messages, options, groqApiKey);
+    if (orApiKey) {
+      const openRouter = new OpenRouter({
+        apiKey: orApiKey,
+        httpReferer: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
+        appTitle: 'Brain Notepad',
+      });
+
+      const { signal, model, ...chatRequestOptions } = options;
+      const modelsToTry = Array.from(
+        new Set([model, ...STABLE_FREE_MODELS].filter(Boolean))
+      );
+
+      let lastError = null;
+      let response;
+
+      for (const currentModel of modelsToTry) {
+        try {
+          response = await openRouter.chat.send(
+            {
+              chatRequest: {
+                model: currentModel,
+                messages,
+                stream: true,
+                max_tokens: chatRequestOptions.max_tokens ?? 1024,
+                ...chatRequestOptions,
+              },
+            },
+            {
+              signal,
+            }
+          );
+          break;
+        } catch (error) {
+          lastError = error;
+          if (isRateLimitError(error)) {
+            await wait(1000);
+          }
+          if (!isRetryableModelError(error) || currentModel === modelsToTry[modelsToTry.length - 1]) {
+            throw error;
+          }
+        }
+      }
+
+      if (!response) {
+        throw lastError || new Error('No AI response available');
+      }
+
+      for await (const chunk of response) {
+        if (options.signal?.aborted) {
+          break;
+        }
+        const content = chunk.choices?.[0]?.delta?.content || '';
+        if (content) {
+          yield content;
+        }
+      }
+    }
 
   } catch (error) {
     console.error('AI streaming error:', error);

@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Download, FileText, FileCode, File, Archive, ChevronDown } from 'lucide-react';
+import { Download, FileText, FileCode, File, Archive, ChevronDown, Share2, Link } from 'lucide-react';
 import { exportAsMarkdown, exportAsTxt, exportAsHtml, exportAllAsZip, printNoteAsPdf } from '@/utils/export';
 import { useNoteStore } from '@/store/useNoteStore';
 
@@ -17,7 +17,68 @@ export default function ExportMenu({ note }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  const handleNativeShare = async () => {
+    setOpen(false);
+    if (!navigator.share) {
+      alert("Native sharing is not supported in this browser. Please use the standard export options.");
+      return;
+    }
+    try {
+      const TurndownService = (await import('turndown')).default;
+      const td = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced' });
+      const markdownBody = td.turndown(note.content || '');
+      const mdContent = `# ${note.title || 'Untitled'}\n\n${markdownBody}`;
+      
+      const file = new File([mdContent], `${note.title || 'Untitled'}.md`, { type: 'text/markdown' });
+      
+      await navigator.share({
+        files: [file],
+        title: note.title || 'Untitled',
+        text: `Shared note from Brain: ${note.title || 'Untitled'}`,
+      });
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error("Error sharing note:", err);
+      }
+    }
+  };
+
+  const handleGenerateShareLink = () => {
+    setOpen(false);
+    try {
+      const data = {
+        title: note.title || 'Untitled',
+        content: note.content || '',
+        tags: note.tags || [],
+      };
+      const json = JSON.stringify(data);
+      const b64 = btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+        return String.fromCharCode(parseInt(p1, 16));
+      }));
+      
+      const shareUrl = `${window.location.origin}/#share=${b64}`;
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        import('@/store/useToastStore').then(({ useToastStore }) => {
+          useToastStore.getState().showToast("Copied zero-knowledge share link to clipboard!");
+        });
+      });
+    } catch (err) {
+      console.error("Failed to generate share link:", err);
+    }
+  };
+
   const actions = [
+    {
+      label: 'Share to iCloud / Google Drive',
+      icon: Share2,
+      action: () => { handleNativeShare(); },
+    },
+    {
+      label: 'Generate ZK Share Link',
+      icon: Link,
+      action: () => { handleGenerateShareLink(); },
+    },
+    { divider: true },
     {
       label: 'Export as Markdown',
       icon: FileCode,

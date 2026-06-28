@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, MoreHorizontal, Edit2, Trash2, X } from 'lucide-react';
 import { useFolderStore } from '@/store/useFolderStore';
 import { useNoteStore } from '@/store/useNoteStore';
+import { useToastStore } from '@/store/useToastStore';
 
 const FOLDER_COLORS = ['#6366f1', '#ec4899', '#f97316', '#14b8a6', '#10b981', '#0ea5e9', '#a855f7'];
 
@@ -22,6 +23,46 @@ export default function FolderList() {
   const [modalState, setModalState] = useState({ isOpen: false, folder: null });
   const [folderName, setFolderName] = useState('');
   const modalRef = useRef(null);
+
+  // ── Drag & Drop Handlers ──────────────────────────────────────
+  const [dragOverFolderId, setDragOverFolderId] = useState(null);
+
+  const handleDragOver = (e, folderId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragEnter = (e, folderId) => {
+    e.preventDefault();
+    setDragOverFolderId(folderId);
+  };
+
+  const handleDragLeave = (e) => {
+    setDragOverFolderId(null);
+  };
+
+  const handleDrop = (e, folderId) => {
+    e.preventDefault();
+    setDragOverFolderId(null);
+    const noteId = e.dataTransfer.getData('text/plain');
+    if (noteId) {
+      const updateNote = useNoteStore.getState().updateNote;
+      const deleteNote = useNoteStore.getState().deleteNote;
+      if (folderId === 'trash') {
+        deleteNote(noteId);
+        useToastStore.getState().showToast('Moved note to Trash');
+      } else {
+        const targetFolderId = folderId === 'all' || folderId === 'pinned' ? null : folderId;
+        updateNote(noteId, { folderId: targetFolderId, trashed: false });
+        if (targetFolderId) {
+          const targetFolder = folders.find((f) => f.id === targetFolderId);
+          useToastStore.getState().showToast(`Moved note to "${targetFolder?.name}"`);
+        } else {
+          useToastStore.getState().showToast('Removed note from folder');
+        }
+      }
+    }
+  };
 
   const folderCounts = useMemo(() => {
     return notes.reduce((counts, note) => {
@@ -131,7 +172,13 @@ export default function FolderList() {
         {smartFolders.map((item) => (
           <li
             key={item.id}
-            className={`folder-item ${activeFolderId === item.id ? 'folder-item--active' : ''}`}
+            className={`folder-item ${activeFolderId === item.id ? 'folder-item--active' : ''} ${
+              dragOverFolderId === item.id ? 'folder-item--drag-over' : ''
+            }`}
+            onDragOver={(e) => handleDragOver(e, item.id)}
+            onDragEnter={(e) => handleDragEnter(e, item.id)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, item.id)}
           >
             <button
               type="button"
@@ -147,7 +194,13 @@ export default function FolderList() {
         {folders.map((folder) => (
           <li
             key={folder.id}
-            className={`folder-item ${activeFolderId === folder.id ? 'folder-item--active' : ''}`}
+            className={`folder-item ${activeFolderId === folder.id ? 'folder-item--active' : ''} ${
+              dragOverFolderId === folder.id ? 'folder-item--drag-over' : ''
+            }`}
+            onDragOver={(e) => handleDragOver(e, folder.id)}
+            onDragEnter={(e) => handleDragEnter(e, folder.id)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, folder.id)}
           >
             <button
               type="button"
@@ -324,10 +377,17 @@ export default function FolderList() {
           padding: 8px 8px 8px 10px;
           border-radius: 10px;
           background: var(--bg-subtle);
+          transition: background var(--t-fast), outline var(--t-fast);
         }
 
         .folder-item--active {
           background: var(--bg-active);
+        }
+
+        .folder-item--drag-over {
+          background: rgba(99, 102, 241, 0.1) !important;
+          outline: 2px dashed var(--brand);
+          outline-offset: -2px;
         }
 
         .folder-item__button {

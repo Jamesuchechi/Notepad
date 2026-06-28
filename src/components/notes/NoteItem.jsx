@@ -82,6 +82,11 @@ export default function NoteItem({ note, isActive, onSelect, isMultiSelect, isSe
       className={`note-item ${isActive ? 'note-item--active' : ''} ${isSelected ? 'note-item--selected' : ''}`}
       role="option"
       aria-selected={isActive}
+      draggable={!isMultiSelect}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', note.id);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
       onClick={(e) => {
         if (isMultiSelect) {
           e.stopPropagation();

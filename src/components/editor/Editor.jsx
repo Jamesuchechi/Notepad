@@ -137,6 +137,105 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
 
   const [suggestedTags, setSuggestedTags] = useState([]);
 
+  // ── Slash Commands State ──────────────────────────────────────
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
+  const [slashMenuCoords, setSlashMenuCoords] = useState({ top: 0, left: 0 });
+  const [slashSearchQuery, setSlashSearchQuery] = useState('');
+  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
+
+  const SLASH_COMMANDS = useMemo(
+    () => [
+      {
+        name: 'Heading 1',
+        description: 'Big section heading',
+        icon: Heading1,
+        action: (ed) => ed.chain().focus().toggleHeading({ level: 1 }).run(),
+      },
+      {
+        name: 'Heading 2',
+        description: 'Medium section heading',
+        icon: Heading2,
+        action: (ed) => ed.chain().focus().toggleHeading({ level: 2 }).run(),
+      },
+      {
+        name: 'Heading 3',
+        description: 'Small section heading',
+        icon: Heading3,
+        action: (ed) => ed.chain().focus().toggleHeading({ level: 3 }).run(),
+      },
+      {
+        name: 'Bullet List',
+        description: 'Create a simple bulleted list',
+        icon: List,
+        action: (ed) => ed.chain().focus().toggleBulletList().run(),
+      },
+      {
+        name: 'Numbered List',
+        description: 'Create a list with numbering',
+        icon: ListOrdered,
+        action: (ed) => ed.chain().focus().toggleOrderedList().run(),
+      },
+      {
+        name: 'Quote',
+        description: 'Capture a quote block',
+        icon: Quote,
+        action: (ed) => ed.chain().focus().toggleBlockquote().run(),
+      },
+      {
+        name: 'Code Block',
+        description: 'Code snippet with syntax highlighting',
+        icon: Code,
+        action: (ed) => ed.chain().focus().toggleCodeBlock().run(),
+      },
+      {
+        name: 'Divider',
+        description: 'Insert a horizontal line separator',
+        icon: Minus,
+        action: (ed) => ed.chain().focus().setHorizontalRule().run(),
+      },
+      {
+        name: 'Mermaid Diagram',
+        description: 'Visual diagram or flowchart block',
+        icon: Workflow,
+        action: (ed) =>
+          ed
+            .chain()
+            .focus()
+            .insertContent({ type: 'mermaidBlock', attrs: { code: 'graph TD\n  A --> B' } })
+            .run(),
+      },
+      {
+        name: 'Math Formula',
+        description: 'LaTeX mathematical expression block',
+        icon: Sigma,
+        action: (ed) =>
+          ed
+            .chain()
+            .focus()
+            .insertContent({ type: 'mathBlock', attrs: { latex: 'E = mc^2' } })
+            .run(),
+      },
+    ],
+    []
+  );
+
+  const filteredCommands = useMemo(() => {
+    if (!slashSearchQuery) return SLASH_COMMANDS;
+    const q = slashSearchQuery.toLowerCase();
+    return SLASH_COMMANDS.filter(
+      (cmd) => cmd.name.toLowerCase().includes(q) || cmd.description.toLowerCase().includes(q)
+    );
+  }, [slashSearchQuery, SLASH_COMMANDS]);
+
+  const slashStateRef = useRef({
+    show: false,
+    query: '',
+    index: 0,
+    commands: [],
+    execute: null,
+    detect: null,
+  });
+
   const [title, setTitle] = useState(note.title ?? '');
   const [tags, setTags] = useState(note.tags ?? []);
   const [tagInput, setTagInput] = useState('');
@@ -268,6 +367,35 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
         spellCheck: 'true',
         'data-placeholder': 'Start writing your note…',
       },
+      handleKeyDown(view, event) {
+        const current = slashStateRef.current;
+        if (current.show) {
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setSlashSelectedIndex((prev) => (prev + 1) % current.commands.length);
+            return true;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setSlashSelectedIndex((prev) => (prev - 1 + current.commands.length) % current.commands.length);
+            return true;
+          }
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            const selected = current.commands[current.index];
+            if (selected) {
+              current.execute(selected);
+            }
+            return true;
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setShowSlashMenu(false);
+            return true;
+          }
+        }
+        return false;
+      },
       handleClick(view, pos, event) {
         const target = event.target;
         const link = target.closest('.wiki-link');
@@ -293,6 +421,9 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
         return false;
       },
     },
+    onSelectionUpdate: ({ editor }) => {
+      slashStateRef.current.detect?.(editor);
+    },
     onCreate: ({ editor }) => {
       updateEditorStats(editor);
     },
@@ -303,8 +434,69 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
       }
       updateEditorStats(editor);
       scheduleSave(editor.getHTML(), latestTitleRef.current, latestTagsRef.current, latestNoteIdRef.current);
+      slashStateRef.current.detect?.(editor);
     },
   });
+
+  const executeSlashCommand = useCallback(
+    (cmd) => {
+      if (!editor || !cmd) return;
+      const { state } = editor;
+      const { $from } = state.selection;
+      const currentQuery = slashStateRef.current.query;
+      const from = $from.pos - currentQuery.length - 1;
+      const to = $from.pos;
+
+      editor.commands.deleteRange({ from, to });
+      cmd.action(editor);
+
+      setShowSlashMenu(false);
+      setSlashSelectedIndex(0);
+      setSlashSearchQuery('');
+    },
+    [editor]
+  );
+
+  const detectSlashTrigger = useCallback((ed) => {
+    const { state } = ed;
+    const { $from } = state.selection;
+    const textBefore = $from.parent.textBetween(
+      Math.max(0, $from.parentOffset - 20),
+      $from.parentOffset,
+      null,
+      '\n'
+    );
+
+    const match = textBefore.match(/\/(\w*)$/);
+    if (match) {
+      const query = match[1];
+      setSlashSearchQuery(query);
+      setShowSlashMenu(true);
+
+      const coords = ed.view.coordsAtPos($from.pos);
+      const container = ed.view.dom.closest('.note-editor-content');
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        setSlashMenuCoords({
+          top: coords.bottom - rect.top + container.scrollTop + 8,
+          left: coords.left - rect.left,
+        });
+      }
+    } else {
+      setShowSlashMenu(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    slashStateRef.current = {
+      show: showSlashMenu,
+      query: slashSearchQuery,
+      index: slashSelectedIndex,
+      commands: filteredCommands,
+      execute: executeSlashCommand,
+      detect: detectSlashTrigger,
+    };
+  }, [showSlashMenu, slashSearchQuery, slashSelectedIndex, filteredCommands, executeSlashCommand, detectSlashTrigger]);
 
   useEffect(() => {
     const previousNoteId = latestNoteIdRef.current;
@@ -809,9 +1001,10 @@ Suggested tags:`;
         </div>
 
         <JournalPrompt note={note} editor={editor} />
+      </div>
 
-        {/* ── Toolbar ───────────────────────────────────────────── */}
-        <div className={`editor-toolbar${focusMode && !showFocusToolbar ? ' editor-toolbar--hidden' : ''}`} role="toolbar" aria-label="Formatting toolbar">
+      {/* ── Toolbar ───────────────────────────────────────────── */}
+      <div className={`editor-toolbar${focusMode && !showFocusToolbar ? ' editor-toolbar--hidden' : ''}`} role="toolbar" aria-label="Formatting toolbar">
           <div className="editor-toolbar__formatting">
             {toolbarButtons.map((button) => {
               const Icon = button.icon;
@@ -865,7 +1058,6 @@ Suggested tags:`;
             <ExportMenu note={{ ...note, title, content: editor?.getHTML() ?? note.content }} />
           </div>
         </div>
-      </div>
 
       {/* ── Editor content ────────────────────────────────────── */}
       {note.trashed && (
@@ -907,6 +1099,40 @@ Suggested tags:`;
           <>
             <EditorContent editor={editor} />
             <AIActionMenu editor={editor} />
+            {showSlashMenu && (
+              <div
+                className="editor-slash-menu"
+                style={{
+                  top: `${slashMenuCoords.top}px`,
+                  left: `${slashMenuCoords.left}px`,
+                }}
+              >
+                {filteredCommands.length === 0 ? (
+                  <div className="editor-slash-menu__empty">No commands found</div>
+                ) : (
+                  filteredCommands.map((cmd, idx) => {
+                    const Icon = cmd.icon;
+                    return (
+                      <button
+                        key={cmd.name}
+                        type="button"
+                        className={`editor-slash-menu__item ${
+                          idx === slashSelectedIndex ? 'editor-slash-menu__item--selected' : ''
+                        }`}
+                        onClick={() => executeSlashCommand(cmd)}
+                        onMouseEnter={() => setSlashSelectedIndex(idx)}
+                      >
+                        <Icon size={16} className="editor-slash-menu__icon" />
+                        <div className="editor-slash-menu__info">
+                          <span className="editor-slash-menu__name">{cmd.name}</span>
+                          <span className="editor-slash-menu__desc">{cmd.description}</span>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </>
         ) : (
           <div className="note-editor-loading">Loading editor…</div>
@@ -1174,6 +1400,7 @@ Suggested tags:`;
           overflow-y: auto;
           padding: 24px 48px 24px;
           min-height: 0;
+          position: relative;
         }
 
         .editor-details {
@@ -1632,6 +1859,73 @@ Suggested tags:`;
 
         .note-backlink-item:hover {
           background: var(--bg-hover);
+        }
+
+        .editor-slash-menu {
+          position: absolute;
+          z-index: 100;
+          width: 300px;
+          max-height: 280px;
+          overflow-y: auto;
+          background: var(--bg-elevated);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+          padding: 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          backdrop-filter: blur(10px);
+        }
+
+        .editor-slash-menu__empty {
+          padding: 12px;
+          font-size: 0.8125rem;
+          color: var(--text-tertiary);
+          text-align: center;
+        }
+
+        .editor-slash-menu__item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 10px;
+          background: transparent;
+          border: none;
+          border-radius: 8px;
+          color: var(--text-secondary);
+          cursor: pointer;
+          text-align: left;
+          width: 100%;
+          font-family: inherit;
+          transition: background var(--t-fast), color var(--t-fast);
+        }
+
+        .editor-slash-menu__item--selected {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+
+        .editor-slash-menu__icon {
+          color: var(--brand);
+          flex-shrink: 0;
+        }
+
+        .editor-slash-menu__info {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .editor-slash-menu__name {
+          font-size: 0.84rem;
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        .editor-slash-menu__desc {
+          font-size: 0.72rem;
+          color: var(--text-tertiary);
+          margin-top: 1px;
         }
 
         .wiki-link {

@@ -348,11 +348,11 @@ Phased plan from project setup to a fully polished app. Work through each phase 
 
 ---
 
-## Backlog (post v1)
+## Phase 19 — PWA, Versioning, & Slash Commands
 
-- [ ] PWA support — installable, works offline
-- [ ] Note version history (store last N snapshots in localStorage)
-- [ ] Slash commands in editor (`/heading`, `/todo`, `/code`)
-- [ ] Draggable note reordering in sidebar
-- [ ] iCloud / Google Drive export integration
-- [ ] Public share link (via a backend — out of scope for local-first v1)
+- [x] PWA support — Web App Manifest and Service Worker caching (installable, works 100% offline)
+- [x] Note version history (store last N snapshots in IndexedDB)
+- [x] Slash commands in editor (`/heading`, `/todo`, `/code`)
+- [x] Draggable note reordering in sidebar (Drag notes directly to folders)
+- [x] iCloud / Google Drive export integration (via native OS Share sheet)
+- [x] Public share link (Zero-Knowledge offline share link & import parser)
