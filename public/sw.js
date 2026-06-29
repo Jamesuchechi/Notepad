@@ -42,6 +42,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Do not intercept Vite/HMR internal development requests
+  if (
+    url.pathname.startsWith('/@') ||
+    url.pathname.includes('/node_modules/') ||
+    url.searchParams.has('t') ||
+    url.searchParams.has('import')
+  ) {
+    return;
+  }
+
   // Network-First for HTML/document navigate requests
   if (event.request.mode === 'navigate') {
     event.respondWith(

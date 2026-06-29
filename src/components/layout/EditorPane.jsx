@@ -32,6 +32,7 @@ export default function EditorPane({ onOpenSidebar, previewMode, forceSaveSignal
       <div className="editor-pane__content">
         {activeNote ? (
           <Editor
+            key={activeNote.id}
             note={activeNote}
             previewMode={previewMode}
             forceSaveSignal={forceSaveSignal}

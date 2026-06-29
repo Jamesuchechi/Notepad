@@ -2,8 +2,7 @@ import { PenLine, Settings, Sun, Moon, Monitor, X, HelpCircle, MessageCircle, Mi
 
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useNoteStore } from '@/store/useNoteStore';
-import FolderList from '@/components/folders/FolderList';
-import NoteList from '@/components/notes/NoteList';
+import FileExplorer from '@/components/folders/FileExplorer';
 import ImportButton from '@/components/notes/ImportButton';
 
 export default function Sidebar({ onClose, onOpenSearch, onOpenSettings, onOpenShortcuts, onOpenTemplate, onOpenAIChat, onOpenVoiceNote, onOpenGraph, onOpenCanvas }) {
@@ -64,10 +63,7 @@ export default function Sidebar({ onClose, onOpenSearch, onOpenSettings, onOpenS
           <ImportButton />
         </div>
 
-        <FolderList />
-
-        <div className="sidebar__section-label">Notes</div>
-        <NoteList />
+        <FileExplorer />
       </div>
 
       {/* ── 3. Footer ─────────────────────────────────────────── */}

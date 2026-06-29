@@ -11,10 +11,24 @@ export const useNoteStore = create(
       activeNoteId: null,
 
       createNote: (attrs = {}) => {
+        let title = attrs.title ?? 'Untitled';
+        let content = attrs.content ?? '';
+
+        if (!title.includes('.')) {
+          if (attrs.templateId && attrs.templateId !== 'blank') {
+            title = `${title}.md`;
+          } else {
+            title = `${title}.txt`;
+            if (attrs.templateId === 'blank') {
+              content = '';
+            }
+          }
+        }
+
         const note = {
           id: attrs.id ?? uuidv4(),
-          title: attrs.title ?? 'Untitled',
-          content: attrs.content ?? '',
+          title,
+          content,
           folderId: attrs.folderId ?? null,
           tags: attrs.tags ?? [],
           pinned: attrs.pinned ?? false,
@@ -132,6 +146,12 @@ export const useNoteStore = create(
             import('./useSyncStore').then(({ useSyncStore }) => {
               useSyncStore.getState().writeNoteToDisk(updated);
             });
+
+            if (updated.folderId) {
+              import('./useFolderStore').then(({ useFolderStore }) => {
+                useFolderStore.getState().restoreFolder(updated.folderId);
+              });
+            }
 
             return updated;
           }),

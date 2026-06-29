@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, MoreHorizontal, Edit2, Trash2, X } from 'lucide-react';
-import { useFolderStore } from '@/store/useFolderStore';
+import { useFolderStore, isFolderTrashed, isNoteTrashed } from '@/store/useFolderStore';
 import { useNoteStore } from '@/store/useNoteStore';
 import { useToastStore } from '@/store/useToastStore';
 
@@ -66,22 +66,22 @@ export default function FolderList() {
 
   const folderCounts = useMemo(() => {
     return notes.reduce((counts, note) => {
-      if (note.folderId && !note.trashed) {
+      if (note.folderId && !isNoteTrashed(note, folders)) {
         counts[note.folderId] = (counts[note.folderId] ?? 0) + 1;
       }
       return counts;
     }, {});
-  }, [notes]);
+  }, [notes, folders]);
 
   const uniqueTags = useMemo(() => {
     const tags = new Set();
     notes.forEach((note) => {
-      if (!note.trashed) {
+      if (!isNoteTrashed(note, folders)) {
         note.tags?.forEach((tag) => tags.add(tag));
       }
     });
     return [...tags].sort((a, b) => a.localeCompare(b));
-  }, [notes]);
+  }, [notes, folders]);
 
   useEffect(() => {
     if (!modalState.isOpen) return;
@@ -145,11 +145,15 @@ export default function FolderList() {
     setMenuOpenId(null);
   };
 
-  const smartFolders = [
-    { id: 'all', label: 'All Notes', count: notes.filter((n) => !n.trashed).length },
-    { id: 'pinned', label: 'Pinned', count: notes.filter((note) => note.pinned && !note.trashed).length },
-    { id: 'trash', label: 'Trash', count: notes.filter((note) => note.trashed).length },
-  ];
+  const activeFolders = useMemo(() => {
+    return folders.filter((f) => !isFolderTrashed(f, folders));
+  }, [folders]);
+
+  const smartFolders = useMemo(() => [
+    { id: 'all', label: 'All Notes', count: notes.filter((n) => !isNoteTrashed(n, folders)).length },
+    { id: 'pinned', label: 'Pinned', count: notes.filter((note) => note.pinned && !isNoteTrashed(note, folders)).length },
+    { id: 'trash', label: 'Trash', count: notes.filter((note) => isNoteTrashed(note, folders)).length },
+  ], [notes, folders]);
 
   return (
     <section className="folder-list">
@@ -191,7 +195,7 @@ export default function FolderList() {
           </li>
         ))}
 
-        {folders.map((folder) => (
+        {activeFolders.map((folder) => (
           <li
             key={folder.id}
             className={`folder-item ${activeFolderId === folder.id ? 'folder-item--active' : ''} ${

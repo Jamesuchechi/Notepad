@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowUpDown } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
-import { useFolderStore } from '@/store/useFolderStore';
+import { useFolderStore, isNoteTrashed } from '@/store/useFolderStore';
 import NoteItem from './NoteItem';
 import BulkActionBar from './BulkActionBar';
 
@@ -15,6 +15,7 @@ export default function NoteList() {
   const notes = useNoteStore((s) => s.notes);
   const activeNoteId = useNoteStore((s) => s.activeNoteId);
   const setActiveNote = useNoteStore((s) => s.setActiveNote);
+  const folders = useFolderStore((s) => s.folders);
   const activeFolderId = useFolderStore((s) => s.activeFolderId);
   const tagFilter = useFolderStore((s) => s.tagFilter);
 
@@ -25,9 +26,9 @@ export default function NoteList() {
 
   const filtered = notes.filter((note) => {
     if (activeFolderId === 'trash') {
-      return note.trashed;
+      return isNoteTrashed(note, folders);
     }
-    if (note.trashed) return false;
+    if (isNoteTrashed(note, folders)) return false;
 
     if (tagFilter && !note.tags?.includes(tagFilter)) return false;
     if (activeFolderId === 'pinned') return note.pinned;

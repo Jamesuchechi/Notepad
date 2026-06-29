@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Pin, MoreHorizontal, Trash2, PinOff, FolderPlus, X, Unlock } from 'lucide-react';
 import { useNoteStore } from '@/store/useNoteStore';
-import { useFolderStore } from '@/store/useFolderStore';
+import { useFolderStore, isNoteTrashed } from '@/store/useFolderStore';
 import { useToastStore } from '@/store/useToastStore';
 
 export default function NoteItem({ note, isActive, onSelect, isMultiSelect, isSelected, onToggleSelect }) {
@@ -109,7 +109,7 @@ export default function NoteItem({ note, isActive, onSelect, isMultiSelect, isSe
       )}
 
       {/* Left: folder colour dot (Phase 6 — hidden until folderId is set) */}
-      {!isMultiSelect && note.folderId && !note.trashed && (
+      {!isMultiSelect && note.folderId && !isNoteTrashed(note, folders) && (
         <span
           className="note-item__folder-dot"
           aria-hidden="true"
@@ -123,7 +123,7 @@ export default function NoteItem({ note, isActive, onSelect, isMultiSelect, isSe
           {note.title?.trim() || 'Untitled'}
         </span>
         <span className="note-item__meta">
-          {note.pinned && !note.trashed && (
+          {note.pinned && !isNoteTrashed(note, folders) && (
             <Pin size={10} className="note-item__pin-icon" aria-label="Pinned" />
           )}
           <time className="note-item__time" dateTime={note.updatedAt}>
@@ -146,7 +146,7 @@ export default function NoteItem({ note, isActive, onSelect, isMultiSelect, isSe
 
           {menuOpen && (
             <ul className="note-item__menu" role="menu">
-              {note.trashed ? (
+              {isNoteTrashed(note, folders) ? (
                 <>
                   <li role="none">
                     <button

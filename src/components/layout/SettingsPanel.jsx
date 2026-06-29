@@ -71,6 +71,8 @@ export default function SettingsPanel({ open, onClose }) {
           </button>
         </div>
 
+        <div className="settings-panel__body">
+
         <div className="settings-panel__group">
           <h3>Theme</h3>
           <p>Cycle through system, light, and dark themes.</p>
@@ -397,6 +399,7 @@ export default function SettingsPanel({ open, onClose }) {
           </div>
         </div>
       </div>
+      </div>
 
       <style>{`
         .settings-backdrop {
@@ -412,12 +415,15 @@ export default function SettingsPanel({ open, onClose }) {
 
         .settings-panel {
           width: min(520px, 100%);
+          max-height: min(750px, 85vh);
+          display: flex;
+          flex-direction: column;
           background: var(--bg-elevated);
           border: 1px solid var(--border);
           border-radius: 20px;
-          padding: 24px;
           box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
           animation: fade-in 0.15s ease;
+          overflow: hidden;
         }
 
         .settings-panel__header {
@@ -425,7 +431,9 @@ export default function SettingsPanel({ open, onClose }) {
           align-items: flex-start;
           justify-content: space-between;
           gap: 16px;
-          margin-bottom: 20px;
+          padding: 24px 24px 16px 24px;
+          border-bottom: 1px solid var(--border);
+          flex-shrink: 0;
         }
 
         .settings-panel__header h2 {
@@ -441,8 +449,14 @@ export default function SettingsPanel({ open, onClose }) {
           line-height: 1.5;
         }
 
+        .settings-panel__body {
+          flex: 1;
+          overflow-y: auto;
+          padding: 20px 24px 24px 24px;
+        }
+
         .settings-panel__group {
-          margin-bottom: 18px;
+          margin-bottom: 24px;
         }
 
         .settings-panel__toggles {

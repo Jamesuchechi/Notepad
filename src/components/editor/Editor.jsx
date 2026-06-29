@@ -39,9 +39,11 @@ import { MathBlock } from './MathBlock';
 import { MermaidBlock } from './MermaidBlock';
 
 import { useNoteStore } from '@/store/useNoteStore';
+import { useFolderStore, isNoteTrashed } from '@/store/useFolderStore';
 import ExportMenu from '@/components/editor/ExportMenu';
 import HistoryMenu from '@/components/editor/HistoryMenu';
 import MarkdownPreview from '@/components/editor/MarkdownPreview';
+import CodeEditor from '@/components/editor/CodeEditor';
 import { useToastStore } from '@/store/useToastStore';
 
 // AI Extensions and Store
@@ -128,6 +130,8 @@ const td = new TurndownService({
 export default function Editor({ note, previewMode = false, focusMode = false, forceSaveSignal = 0, onTogglePreview, onToggleFocusMode }) {
   const updateNote = useNoteStore((s) => s.updateNote);
   const notes = useNoteStore((s) => s.notes);
+  const folders = useFolderStore((s) => s.folders);
+  const isTrashed = useMemo(() => isNoteTrashed(note, folders), [note, folders]);
   const aiEnabled = useSettingsStore((s) => s.aiEnabled);
   const summarizeEnabled = useSettingsStore((s) => s.aiFeatures?.summarize);
   const autoTagEnabled = useSettingsStore((s) => s.aiFeatures?.autoTag);
@@ -236,18 +240,40 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
     detect: null,
   });
 
+  const isCodeOrPlainText = useMemo(() => {
+    const ext = note.title?.split('.').pop()?.toLowerCase();
+    return ext && ['js', 'jsx', 'ts', 'tsx', 'css', 'html', 'json', 'py', 'yml', 'yaml', 'toml', 'ini'].includes(ext);
+  }, [note.title]);
+
+  const [codeContent, setCodeContent] = useState(note.content || '');
+
+  useEffect(() => {
+    if (isCodeOrPlainText) {
+      setCodeContent(note.content || '');
+    }
+  }, [note.id, note.content, isCodeOrPlainText]);
+
   const [title, setTitle] = useState(note.title ?? '');
   const [tags, setTags] = useState(note.tags ?? []);
   const [tagInput, setTagInput] = useState('');
   const [status, setStatus] = useState('Saved');
   const [stats, setStats] = useState({ words: 0, chars: 0, readTime: 0 });
+
+  useEffect(() => {
+    if (isCodeOrPlainText) {
+      const words = codeContent.trim().length > 0 ? codeContent.trim().split(/\s+/).length : 0;
+      const chars = codeContent.length;
+      const readTime = words === 0 ? 0 : Math.max(1, Math.ceil(words / 200));
+      setStats({ words, chars, readTime });
+    }
+  }, [codeContent, isCodeOrPlainText]);
   const [showFocusToolbar, setShowFocusToolbar] = useState(false);
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
   const backlinks = useMemo(() => {
     return notes.filter((n) => {
-      if (n.id === note.id || n.trashed) return false;
+      if (n.id === note.id || isNoteTrashed(n, folders)) return false;
       const content = n.content || '';
       return (
         content.includes(`note://${note.id}`) ||
@@ -255,7 +281,7 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
         content.includes(`note-new://${encodeURIComponent(note.title || '')}`)
       );
     });
-  }, [notes, note.id, note.title]);
+  }, [notes, note.id, note.title, folders]);
   const saveTimer = useRef(null);
   const revealTimer = useRef(null);
   const summarizeAbortControllerRef = useRef(null);
@@ -264,6 +290,16 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
   const latestTagsRef = useRef(tags);
   const latestNoteIdRef = useRef(note.id);
   const isSyncingRef = useRef(false);
+  const latestCodeContentRef = useRef(codeContent);
+
+  useEffect(() => {
+    latestCodeContentRef.current = codeContent;
+  }, [codeContent]);
+
+  const handleCodeChange = (newVal) => {
+    setCodeContent(newVal);
+    scheduleSave(newVal, latestTitleRef.current, latestTagsRef.current, latestNoteIdRef.current);
+  };
 
   useEffect(() => {
     latestTitleRef.current = title;
@@ -505,12 +541,12 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
       setTitle(note.title ?? '');
       setTags(note.tags ?? []);
       latestNoteIdRef.current = note.id;
-      if (editor) {
+      if (editor && !isCodeOrPlainText) {
         isSyncingRef.current = true;
         editor.commands.setContent(note.content || DEFAULT_DOC, false);
       }
     } else {
-      if (editor) {
+      if (editor && !isCodeOrPlainText) {
         const currentContent = editor.getHTML();
         if (note.content && note.content !== currentContent) {
           isSyncingRef.current = true;
@@ -530,21 +566,21 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
       }
     }
 
-    if (editor) {
-      editor.setEditable(!note.trashed);
+    if (editor && !isCodeOrPlainText) {
+      editor.setEditable(!isTrashed);
     }
 
     lastSaveRef.current = {
       noteId: note.id,
       title: note.title ?? '',
       tags: note.tags ?? [],
-      content: note.content || DEFAULT_DOC,
+      content: note.content || (isCodeOrPlainText ? '' : DEFAULT_DOC),
     };
     
-    if (editor) {
+    if (editor && !isCodeOrPlainText) {
       updateEditorStats(editor);
     }
-  }, [note.id, note.title, note.content, note.tags, editor, updateEditorStats]);
+  }, [note.id, note.title, note.content, note.tags, editor, updateEditorStats, isCodeOrPlainText]);
 
   useEffect(() => {
     if (!focusMode) {
@@ -560,7 +596,8 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
     return () => {
       if (saveTimer.current) {
         window.clearTimeout(saveTimer.current);
-        if (editor) flushSave(editor.getHTML(), title, note.id);
+        const currentContent = isCodeOrPlainText ? latestCodeContentRef.current : (editor?.getHTML() ?? DEFAULT_DOC);
+        flushSave(currentContent, latestTitleRef.current, latestNoteIdRef.current);
       }
       if (revealTimer.current) {
         window.clearTimeout(revealTimer.current);
@@ -569,42 +606,45 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
         summarizeAbortControllerRef.current.abort();
       }
     };
-  }, [editor, flushSave, note.id, title]);
+  }, [editor, flushSave, isCodeOrPlainText]);
 
   useEffect(() => {
-    if (forceSaveSignal > 0 && editor) {
-      flushSave(editor.getHTML(), title, tags);
+    if (forceSaveSignal > 0) {
+      const currentContent = isCodeOrPlainText ? latestCodeContentRef.current : (editor?.getHTML() ?? DEFAULT_DOC);
+      flushSave(currentContent, title, tags);
     }
-  }, [forceSaveSignal, editor, flushSave, title, tags]);
+  }, [forceSaveSignal, editor, flushSave, title, tags, isCodeOrPlainText]);
 
   const handleSummarize = async () => {
-    if (isSummarizing || !editor) return;
+    if (isSummarizing || (!editor && !isCodeOrPlainText)) return;
 
-    const text = editor.getText();
+    const text = isCodeOrPlainText ? codeContent : editor.getText();
     if (!text.trim()) return;
 
     setIsSummarizing(true);
 
-    // Insert placeholder details block at pos 0
-    editor.commands.insertContentAt(0, {
-      type: 'details',
-      attrs: { open: true },
-      content: [
-        {
-          type: 'detailsSummary',
-          content: [{ type: 'text', text: '✨ AI Summary' }],
-        },
-        {
-          type: 'detailsContent',
-          content: [
-            {
-              type: 'paragraph',
-              content: [{ type: 'text', text: 'Generating summary...' }],
-            },
-          ],
-        },
-      ],
-    });
+    if (!isCodeOrPlainText) {
+      // Insert placeholder details block at pos 0
+      editor.commands.insertContentAt(0, {
+        type: 'details',
+        attrs: { open: true },
+        content: [
+          {
+            type: 'detailsSummary',
+            content: [{ type: 'text', text: '✨ AI Summary' }],
+          },
+          {
+            type: 'detailsContent',
+            content: [
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Generating summary...' }],
+              },
+            ],
+          },
+        ],
+      });
+    }
 
     const prompt = `Summarize the following note content in a clear, concise bulleted format. Return only the summary text, without introductions or explanations:\n\n${text}`;
 
@@ -622,31 +662,42 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
         }
         accumulatedText += chunk;
 
-        // Replace the details block at position 0
-        const node = editor.state.doc.nodeAt(0);
-        if (node && node.type.name === 'details') {
-          editor.commands.deleteRange({ from: 0, to: node.nodeSize });
-        }
+        if (!isCodeOrPlainText) {
+          // Replace the details block at position 0
+          const node = editor.state.doc.nodeAt(0);
+          if (node && node.type.name === 'details') {
+            editor.commands.deleteRange({ from: 0, to: node.nodeSize });
+          }
 
-        editor.commands.insertContentAt(0, {
-          type: 'details',
-          attrs: { open: true },
-          content: [
-            {
-              type: 'detailsSummary',
-              content: [{ type: 'text', text: '✨ AI Summary' }],
-            },
-            {
-              type: 'detailsContent',
-              content: [
-                {
-                  type: 'paragraph',
-                  content: [{ type: 'text', text: accumulatedText }],
-                },
-              ],
-            },
-          ],
-        });
+          editor.commands.insertContentAt(0, {
+            type: 'details',
+            attrs: { open: true },
+            content: [
+              {
+                type: 'detailsSummary',
+                content: [{ type: 'text', text: '✨ AI Summary' }],
+              },
+              {
+                type: 'detailsContent',
+                content: [
+                  {
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: accumulatedText }],
+                  },
+                ],
+              },
+            ],
+          });
+        }
+      }
+
+      if (isCodeOrPlainText) {
+        const ext = note.title?.split('.').pop()?.toLowerCase();
+        const commentPrefix = ['py', 'yml', 'yaml', 'ini', 'toml'].includes(ext) ? '# ' : '// ';
+        const formattedSummary = `${commentPrefix}✨ AI Summary\n` + 
+          accumulatedText.split('\n').map(line => `${commentPrefix}${line}`).join('\n') + 
+          `\n\n`;
+        handleCodeChange(formattedSummary + codeContent);
       }
     } catch (error) {
       console.error('Summarize error:', error);
@@ -659,12 +710,14 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
   const handleTitleChange = (event) => {
     const nextTitle = event.target.value;
     setTitle(nextTitle);
-    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, nextTitle, latestTagsRef.current, latestNoteIdRef.current);
+    const currentContent = isCodeOrPlainText ? latestCodeContentRef.current : (editor?.getHTML() ?? DEFAULT_DOC);
+    scheduleSave(currentContent, nextTitle, latestTagsRef.current, latestNoteIdRef.current);
   };
 
   const handleTitleBlur = () => {
     if (title !== note.title) {
-      flushSave(editor?.getHTML() ?? DEFAULT_DOC, title, tags, latestNoteIdRef.current);
+      const currentContent = isCodeOrPlainText ? latestCodeContentRef.current : (editor?.getHTML() ?? DEFAULT_DOC);
+      flushSave(currentContent, title, tags, latestNoteIdRef.current);
     }
   };
 
@@ -690,13 +743,15 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
     const nextTags = [...tags, nextTag];
     setTags(nextTags);
     setTagInput('');
-    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags, latestNoteIdRef.current);
+    const currentContent = isCodeOrPlainText ? latestCodeContentRef.current : (editor?.getHTML() ?? DEFAULT_DOC);
+    scheduleSave(currentContent, title, nextTags, latestNoteIdRef.current);
   };
 
   const handleRemoveTag = (tagToRemove) => {
     const nextTags = tags.filter((tag) => tag !== tagToRemove);
     setTags(nextTags);
-    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags, latestNoteIdRef.current);
+    const currentContent = isCodeOrPlainText ? latestCodeContentRef.current : (editor?.getHTML() ?? DEFAULT_DOC);
+    scheduleSave(currentContent, title, nextTags, latestNoteIdRef.current);
   };
 
   const filteredSuggestedTags = useMemo(() => {
@@ -708,7 +763,8 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
     const nextTags = [...tags, tagToAdd];
     setTags(nextTags);
     setSuggestedTags((prev) => prev.filter((t) => t !== tagToAdd));
-    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags, latestNoteIdRef.current);
+    const currentContent = isCodeOrPlainText ? latestCodeContentRef.current : (editor?.getHTML() ?? DEFAULT_DOC);
+    scheduleSave(currentContent, title, nextTags, latestNoteIdRef.current);
   };
 
   const handleAddAllSuggestedTags = () => {
@@ -720,7 +776,8 @@ export default function Editor({ note, previewMode = false, focusMode = false, f
     });
     setTags(nextTags);
     setSuggestedTags([]);
-    scheduleSave(editor?.getHTML() ?? DEFAULT_DOC, title, nextTags, latestNoteIdRef.current);
+    const currentContent = isCodeOrPlainText ? latestCodeContentRef.current : (editor?.getHTML() ?? DEFAULT_DOC);
+    scheduleSave(currentContent, title, nextTags, latestNoteIdRef.current);
   };
 
   useEffect(() => {
@@ -876,7 +933,7 @@ Suggested tags:`;
           onChange={handleTitleChange}
           onBlur={handleTitleBlur}
           aria-label="Note title"
-          disabled={note.trashed}
+          disabled={isTrashed}
         />
         <button
           type="button"
@@ -912,12 +969,12 @@ Suggested tags:`;
                 key={tag}
                 type="button"
                 className="note-tag"
-                onClick={() => !note.trashed && handleRemoveTag(tag)}
-                disabled={note.trashed}
-                title={note.trashed ? undefined : `Remove ${tag}`}
+                onClick={() => !isTrashed && handleRemoveTag(tag)}
+                disabled={isTrashed}
+                title={isTrashed ? undefined : `Remove ${tag}`}
               >
                 <span>{tag}</span>
-                {!note.trashed && <X size={12} />}
+                {!isTrashed && <X size={12} />}
               </button>
             ))}
           </div>
@@ -925,7 +982,7 @@ Suggested tags:`;
             <input
               className="note-tag-input"
               type="text"
-              placeholder={note.trashed ? "Note is in Trash" : "Add tag and press Enter"}
+              placeholder={isTrashed ? "Note is in Trash" : "Add tag and press Enter"}
               value={tagInput}
               onChange={(event) => setTagInput(event.target.value)}
               onKeyDown={(event) => {
@@ -935,14 +992,14 @@ Suggested tags:`;
                 }
               }}
               aria-label="Add tag"
-              disabled={note.trashed}
+              disabled={isTrashed}
             />
             <button
               type="button"
               className="note-tag-add-btn"
               onClick={handleAddTag}
               aria-label="Add tag"
-              disabled={note.trashed}
+              disabled={isTrashed}
             >
               <Plus size={14} />
             </button>
@@ -1006,7 +1063,7 @@ Suggested tags:`;
       {/* ── Toolbar ───────────────────────────────────────────── */}
       <div className={`editor-toolbar${focusMode && !showFocusToolbar ? ' editor-toolbar--hidden' : ''}`} role="toolbar" aria-label="Formatting toolbar">
           <div className="editor-toolbar__formatting">
-            {toolbarButtons.map((button) => {
+            {!isCodeOrPlainText && toolbarButtons.map((button) => {
               const Icon = button.icon;
               return (
                 <button
@@ -1021,20 +1078,21 @@ Suggested tags:`;
                 </button>
               );
             })}
-            <button
-              type="button"
-              className="editor-toolbar__button"
-              onClick={() => onTogglePreview?.()}
-              disabled={!editor}
-              title={previewMode ? 'Return to editor' : 'Preview markdown'}
-            >
-              <Eye size={16} />
-            </button>
+            {!isCodeOrPlainText && (
+              <button
+                type="button"
+                className="editor-toolbar__button"
+                onClick={() => onTogglePreview?.()}
+                disabled={!editor}
+                title={previewMode ? 'Return to editor' : 'Preview markdown'}
+              >
+                <Eye size={16} />
+              </button>
+            )}
             <button
               type="button"
               className="editor-toolbar__button"
               onClick={() => onToggleFocusMode?.()}
-              disabled={!editor}
               title={focusMode ? 'Exit focus mode' : 'Enter focus mode'}
             >
               <Maximize2 size={16} />
@@ -1044,7 +1102,7 @@ Suggested tags:`;
                 type="button"
                 className={`editor-toolbar__button ${isSummarizing ? 'editor-toolbar__button--active' : ''}`}
                 onClick={handleSummarize}
-                disabled={!editor || isSummarizing}
+                disabled={(!editor && !isCodeOrPlainText) || isSummarizing}
                 title="Summarize note with AI"
               >
                 <Sparkles size={16} />
@@ -1055,12 +1113,12 @@ Suggested tags:`;
           {/* Export and History menus live in the toolbar */}
           <div className="editor-toolbar__export" style={{ display: 'flex', gap: '8px' }}>
             <HistoryMenu note={note} editor={editor} />
-            <ExportMenu note={{ ...note, title, content: editor?.getHTML() ?? note.content }} />
+            <ExportMenu note={{ ...note, title, content: isCodeOrPlainText ? codeContent : (editor?.getHTML() ?? note.content) }} />
           </div>
         </div>
 
       {/* ── Editor content ────────────────────────────────────── */}
-      {note.trashed && (
+      {isTrashed && (
         <div className="editor-trash-banner">
           <div className="editor-trash-banner__text">
             This note is in the Trash. You cannot edit it.
@@ -1095,6 +1153,8 @@ Suggested tags:`;
       <div className="note-editor-content">
         {previewMode ? (
           <MarkdownPreview markdown={td.turndown(editor?.getHTML() ?? (note.content || DEFAULT_DOC))} />
+        ) : isCodeOrPlainText ? (
+          <CodeEditor value={codeContent} onChange={handleCodeChange} placeholder="Start typing notepad content..." />
         ) : editor ? (
           <>
             <EditorContent editor={editor} />

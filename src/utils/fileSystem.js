@@ -85,61 +85,109 @@ export async function verifyPermission(fileHandle, readWrite = true) {
   return false;
 }
 
-// Scan a directory recursively and parse all .md files
+// Helper to recursively traverse and resolve the nested DirectoryHandle path for a folder ID
+async function resolveDirectoryPath(dirHandle, folderId, folders, create = true) {
+  if (!folderId) return dirHandle;
+  const path = [];
+  let currentId = folderId;
+  while (currentId) {
+    const folder = folders.find((f) => f.id === currentId);
+    if (!folder) break;
+    path.unshift(sanitizeName(folder.name));
+    currentId = folder.parentId;
+  }
+
+  let currentDir = dirHandle;
+  for (const segment of path) {
+    currentDir = await currentDir.getDirectoryHandle(segment, { create });
+  }
+  return currentDir;
+}
+
+// Scan a directory recursively and parse all supported files
 export async function scanLocalDirectory(dirHandle, foldersMap = new Map()) {
   const notes = [];
   const folders = [];
+  const SUPPORTED_EXTENSIONS = ['md', 'txt', 'js', 'jsx', 'ts', 'tsx', 'css', 'html', 'json', 'py', 'yml', 'yaml', 'toml', 'ini'];
 
-  for await (const entry of dirHandle.values()) {
-    if (entry.kind === 'file' && entry.name.endsWith('.md')) {
-      const file = await entry.getFile();
-      const text = await file.text();
-      const fileId = entry.name.replace(/\.md$/, '') + '-' + file.lastModified;
-      notes.push(parseMarkdownFile(text, entry.name, fileId));
-    } else if (entry.kind === 'directory') {
-      const folderName = entry.name;
-      let folderId = foldersMap.get(folderName);
-      if (!folderId) {
-        folderId = crypto.randomUUID ? crypto.randomUUID() : 'f-' + Math.random().toString(36).substr(2, 9);
+  async function scan(handle, parentFolderId = null, currentPath = '') {
+    for await (const entry of handle.values()) {
+      const entryPath = currentPath ? `${currentPath}/${entry.name}` : entry.name;
+      
+      if (entry.kind === 'file') {
+        const ext = entry.name.split('.').pop()?.toLowerCase();
+        if (SUPPORTED_EXTENSIONS.includes(ext)) {
+          const file = await entry.getFile();
+          const text = await file.text();
+          let parsedNote;
+          if (ext === 'md') {
+            parsedNote = parseMarkdownFile(text, entry.name, entry.name);
+            parsedNote.folderId = parentFolderId;
+          } else {
+            parsedNote = {
+              id: entryPath, // Temporarily use path, useSyncStore will match it
+              title: entry.name,
+              content: text,
+              folderId: parentFolderId,
+              tags: [],
+              pinned: false,
+              trashed: false,
+              updatedAt: new Date(file.lastModified).toISOString(),
+              createdAt: new Date(file.lastModified).toISOString(),
+            };
+          }
+          parsedNote.relativePath = entryPath;
+          notes.push(parsedNote);
+        }
+      } else if (entry.kind === 'directory') {
+        const folderName = entry.name;
+        const folderKey = currentPath ? `${currentPath}/${folderName}` : folderName;
+        let folderId = foldersMap.get(folderKey);
+        
+        if (!folderId) {
+          folderId = crypto.randomUUID ? crypto.randomUUID() : 'f-' + Math.random().toString(36).substr(2, 9);
+          foldersMap.set(folderKey, folderId);
+        }
+        
         folders.push({
           id: folderId,
           name: folderName,
           color: '#6366f1',
+          parentId: parentFolderId,
         });
-      }
-      
-      // Scan nested notes inside the folder
-      for await (const subEntry of entry.values()) {
-        if (subEntry.kind === 'file' && subEntry.name.endsWith('.md')) {
-          const file = await subEntry.getFile();
-          const text = await file.text();
-          const note = parseMarkdownFile(text, subEntry.name, file.name);
-          note.folderId = folderId; // Link note to the containing folder
-          notes.push(note);
-        }
+
+        await scan(entry, folderId, entryPath);
       }
     }
   }
 
+  await scan(dirHandle, null, '');
   return { notes, folders };
 }
 
 // Write note file to disk
 export async function writeNoteToDirectory(dirHandle, note, folders = []) {
   try {
-    let currentDir = dirHandle;
-    const folder = folders.find((f) => f.id === note.folderId);
-    if (folder) {
-      const folderName = sanitizeName(folder.name);
-      currentDir = await dirHandle.getDirectoryHandle(folderName, { create: true });
+    const currentDir = await resolveDirectoryPath(dirHandle, note.folderId, folders, true);
+
+    const ext = note.title?.split('.').pop()?.toLowerCase();
+    const isMd = ext === 'md';
+    
+    let fileName = sanitizeName(note.title || 'Untitled');
+    if (!note.title?.includes('.')) {
+      fileName += '.txt';
     }
 
-    const fileName = `${sanitizeName(note.title || 'Untitled')}.md`;
     const fileHandle = await currentDir.getFileHandle(fileName, { create: true });
     const writable = await fileHandle.createWritable();
     
-    const markdown = serializeNoteToMarkdown(note, folder?.name || '');
-    await writable.write(markdown);
+    if (isMd) {
+      const folder = folders.find((f) => f.id === note.folderId);
+      const markdown = serializeNoteToMarkdown(note, folder?.name || '');
+      await writable.write(markdown);
+    } else {
+      await writable.write(note.content || '');
+    }
     await writable.close();
   } catch (err) {
     console.error('Failed to write note to local disk:', err);
@@ -149,15 +197,56 @@ export async function writeNoteToDirectory(dirHandle, note, folders = []) {
 // Delete note file from disk
 export async function deleteNoteFromDirectory(dirHandle, note, folders = []) {
   try {
-    let currentDir = dirHandle;
-    const folder = folders.find((f) => f.id === note.folderId);
-    if (folder) {
-      const folderName = sanitizeName(folder.name);
-      currentDir = await dirHandle.getDirectoryHandle(folderName, { create: false });
+    const currentDir = await resolveDirectoryPath(dirHandle, note.folderId, folders, false);
+    
+    let fileName = sanitizeName(note.title || 'Untitled');
+    if (!note.title?.includes('.')) {
+      fileName += '.txt';
     }
-    const fileName = `${sanitizeName(note.title || 'Untitled')}.md`;
+    
     await currentDir.removeEntry(fileName);
   } catch (err) {
     console.warn('Failed to delete note from local disk (might already be deleted or folder missing):', err);
+  }
+}
+
+// Create directory on disk recursively
+export async function createFolderInDirectory(dirHandle, folderId, folders = []) {
+  try {
+    const folder = folders.find((f) => f.id === folderId);
+    if (!folder) return;
+    await resolveDirectoryPath(dirHandle, folderId, folders, true);
+  } catch (err) {
+    console.error('Failed to create folder on local disk:', err);
+  }
+}
+
+// Delete directory recursively from disk
+export async function deleteFolderFromDirectory(dirHandle, folderId, folders = []) {
+  try {
+    const folder = folders.find((f) => f.id === folderId);
+    if (!folder) return;
+    
+    const parentDir = await resolveDirectoryPath(dirHandle, folder.parentId, folders, false);
+    const segment = sanitizeName(folder.name);
+    
+    await parentDir.removeEntry(segment, { recursive: true });
+  } catch (err) {
+    console.warn('Failed to delete folder from local disk:', err);
+  }
+}
+
+// Rename directory on disk
+export async function renameFolderOnDirectory(dirHandle, folderId, newName, folders = []) {
+  try {
+    const folder = folders.find((f) => f.id === folderId);
+    if (!folder) return;
+    
+    const currentDir = await resolveDirectoryPath(dirHandle, folderId, folders, false);
+    if (currentDir.move) {
+      await currentDir.move(sanitizeName(newName));
+    }
+  } catch (err) {
+    console.warn('Failed to rename folder on local disk:', err);
   }
 }

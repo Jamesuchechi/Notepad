@@ -78,34 +78,84 @@ export const useSyncStore = create((set, get) => ({
       const { useNoteStore } = await import('./useNoteStore');
 
       const currentFolders = useFolderStore.getState().folders;
-      const foldersMap = new Map(currentFolders.map((f) => [f.name, f.id]));
+      const getFolderPath = (folder) => {
+        const path = [folder.name];
+        let curr = folder;
+        while (curr.parentId) {
+          const parent = currentFolders.find((f) => f.id === curr.parentId);
+          if (!parent) break;
+          path.unshift(parent.name);
+          curr = parent;
+        }
+        return path.join('/');
+      };
+
+      const foldersMap = new Map(currentFolders.map((f) => [getFolderPath(f), f.id]));
 
       const { notes: diskNotes, folders: diskFolders } = await scanLocalDirectory(dirHandle, foldersMap);
 
-      // Merge folders: create folder in app if it doesn't exist
+      // Merge folders in order of appearance (since parents are pushed before children)
       diskFolders.forEach((df) => {
-        if (!currentFolders.some((f) => f.name.toLowerCase() === df.name.toLowerCase())) {
-          useFolderStore.getState().createFolder({ name: df.name, color: df.color });
+        const pathSegments = [];
+        let currDf = df;
+        while (currDf) {
+          pathSegments.unshift(currDf.name);
+          currDf = currDf.parentId ? diskFolders.find((f) => f.id === currDf.parentId) : null;
+        }
+        const fullPath = pathSegments.join('/');
+
+        const existingFolders = useFolderStore.getState().folders;
+        const exists = existingFolders.some((f) => getFolderPath(f).toLowerCase() === fullPath.toLowerCase());
+        if (!exists) {
+          let parentIdInApp = null;
+          if (df.parentId) {
+            const diskParent = diskFolders.find((f) => f.id === df.parentId);
+            if (diskParent) {
+              const parentPathSegments = [];
+              let currParent = diskParent;
+              while (currParent) {
+                parentPathSegments.unshift(currParent.name);
+                currParent = currParent.parentId ? diskFolders.find((f) => f.id === currParent.parentId) : null;
+              }
+              const parentFullPath = parentPathSegments.join('/');
+              const matchedAppParent = useFolderStore.getState().folders.find(
+                (f) => getFolderPath(f).toLowerCase() === parentFullPath.toLowerCase()
+              );
+              if (matchedAppParent) {
+                parentIdInApp = matchedAppParent.id;
+              }
+            }
+          }
+          useFolderStore.getState().createFolder(df.name, parentIdInApp, df.color);
         }
       });
 
       // Reload mapping after folder additions
       const updatedFolders = useFolderStore.getState().folders;
-      const updatedFoldersMap = new Map(updatedFolders.map((f) => [f.name, f.id]));
+      const updatedFoldersMap = new Map(updatedFolders.map((f) => [getFolderPath(f), f.id]));
 
       // Link notes from disk into the app
       const noteStore = useNoteStore.getState();
       diskNotes.forEach((dn) => {
         // Resolve containing folder link in case of folder ID mismatch
+        let matchedFolderId = null;
         if (dn.folderId) {
-          const matchedFolder = diskFolders.find((df) => df.id === dn.folderId);
-          if (matchedFolder) {
-            dn.folderId = updatedFoldersMap.get(matchedFolder.name) || null;
+          const diskParent = diskFolders.find((df) => df.id === dn.folderId);
+          if (diskParent) {
+            const parentPathSegments = [];
+            let currParent = diskParent;
+            while (currParent) {
+              parentPathSegments.unshift(currParent.name);
+              currParent = currParent.parentId ? diskFolders.find((f) => f.id === currParent.parentId) : null;
+            }
+            const parentFullPath = parentPathSegments.join('/');
+            matchedFolderId = updatedFoldersMap.get(parentFullPath) || null;
           }
         }
+        dn.folderId = matchedFolderId;
 
         const existing = noteStore.notes.find(
-          (n) => n.id === dn.id || n.title.toLowerCase() === dn.title.toLowerCase()
+          (n) => n.id === dn.id || (n.title.toLowerCase() === dn.title.toLowerCase() && n.folderId === matchedFolderId)
         );
 
         if (existing) {
@@ -158,6 +208,39 @@ export const useSyncStore = create((set, get) => ({
       const { useFolderStore } = await import('./useFolderStore');
       const folders = useFolderStore.getState().folders;
       await deleteNoteFromDirectory(dirHandle, note, folders);
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  createFolderOnDisk: async (folderId, folders) => {
+    const { dirHandle, permissionGranted, syncActive } = get();
+    if (!dirHandle || !permissionGranted || !syncActive) return;
+    try {
+      const { createFolderInDirectory } = await import('@/utils/fileSystem');
+      await createFolderInDirectory(dirHandle, folderId, folders);
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  deleteFolderFromDisk: async (folderId, folders) => {
+    const { dirHandle, permissionGranted, syncActive } = get();
+    if (!dirHandle || !permissionGranted || !syncActive) return;
+    try {
+      const { deleteFolderFromDirectory } = await import('@/utils/fileSystem');
+      await deleteFolderFromDirectory(dirHandle, folderId, folders);
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  renameFolderOnDisk: async (folderId, newName, folders) => {
+    const { dirHandle, permissionGranted, syncActive } = get();
+    if (!dirHandle || !permissionGranted || !syncActive) return;
+    try {
+      const { renameFolderOnDirectory } = await import('@/utils/fileSystem');
+      await renameFolderOnDirectory(dirHandle, folderId, newName, folders);
     } catch (err) {
       console.error(err);
     }
